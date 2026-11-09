@@ -830,10 +830,12 @@ if (process.env.VISDBG) setTimeout(()=>{ globalThis.__visdbgOn=true; }, +process
 if (process.env.ERRTEST && process.env.ERRDUMP) setTimeout(()=>process.emit('SIGUSR1'), +process.env.ERRDUMP);
 if (process.env.ERRTEST) setTimeout(()=>nrdpReal.gibbon.onLocationChange('http://localcontrol.netflix.com/js/error.js?ERROR_CATEGORY=ui&ERROR_CODE='+process.env.ERRTEST+'&ERROR_DESCRIPTION=Teste'+(process.env.ERRURLX||'')), 6000);
 globalThis.__reloadAsMember = (why)=>{
+  if (globalThis.__restarting) return;
+  globalThis.__restarting = true;
   if (why==='logout') { for (const k of ['NetflixId','SecureNetflixId']) jar.delete(k); jarSave(); }
   console.log(why==='logout' ? '[logout] saiu da conta -> reiniciando o host como visitante' : why==='retry' ? '[retry] tela de erro: reiniciando o boot' : why==='msl' ? '[msl] reiniciando o boot' : '[login] cookies de membro detectados -> reiniciando o host como membro');
   try{ __media.closeAll && __media.closeAll(); }catch{}
-  try{ cp.spawn('sh', ['-c', 'sleep 0.5; exec "$0" "$@"', process.env.PKG_NODE || process.execPath, ...process.argv.slice(1)], { detached:true, stdio:'inherit', env:Object.assign({}, process.env, { FAKELOGIN:'', VIEWER_PID: String(viewerProc && viewerProc.pid || ''), MSLRETRY: why==='msl' ? String((+process.env.MSLRETRY||0)+1) : '' }), cwd:process.cwd() }).unref(); }catch(e){ console.log('[login] falha ao reiniciar', e.message); return; }
+  try{ cp.spawn('sh', ['-c', 'sleep 0.5; exec "$0" "$@"', process.env.PKG_NODE || process.execPath, ...process.argv.slice(1)], { detached:true, stdio:'inherit', env:Object.assign({}, process.env, { FAKELOGIN:'', VIEWER_PID: String(viewerProc && viewerProc.pid || ''), MSLRETRY: why==='msl' ? String((+process.env.MSLRETRY||0)+1) : '' }), cwd:process.cwd() }).unref(); }catch(e){ console.log('[login] falha ao reiniciar', e.message); globalThis.__restarting = false; return; }
   globalThis.__restarting = true;
   setTimeout(()=>process.exit(0), 100);
 };
@@ -1310,6 +1312,16 @@ function startViewer(){
   if (!fs.existsSync(bin)) { console.log('[viewer] binario nao encontrado, compile port2/renderer/scene_viewer.c'); return; }
   const KEYFIFO = '/tmp/gibbon_keys_' + String(SCENE_FILE).replace(/[^A-Za-z0-9]/g,'_');
   try { if (!fs.existsSync(KEYFIFO)) cp.execFileSync('mkfifo', [KEYFIFO]); } catch(e){ console.log('[viewer] mkfifo falhou', e.message); }
+  try {
+    const LK = KEYFIFO + '.host'; let other = 0;
+    try { other = +fs.readFileSync(LK, 'utf8'); } catch {}
+    if (other && other !== process.pid) {
+      let alive = false;
+      try { alive = fs.readFileSync('/proc/' + other + '/comm', 'utf8').trim() === fs.readFileSync('/proc/self/comm', 'utf8').trim(); } catch {}
+      if (alive) { console.log('[host] outra instancia ja controla a janela (pid ' + other + '); saindo'); globalThis.__restarting = true; process.exit(0); }
+    }
+    fs.writeFileSync(LK, String(process.pid));
+  } catch {}
   const attachPid = +__E.VIEWER_PID || 0; let attached = false;
   if (attachPid) { try { process.kill(attachPid, 0); attached = true; } catch {} }
   if (attached) {
