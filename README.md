@@ -2,7 +2,6 @@
 - Netflix with its original TV/console interface, made for **SteamOS** and **Bazzite**
 - Runs on any Linux desktop and works with a game controller
 - Uses **Widevine L3** and plays back at up to **1080p**, depending on your network
-- To install, download the Flatpak from Releases, or build it with `./build.sh flatpak`
 - Early version, may contain bugs. Feedback is welcome!
 
 ## Start
@@ -20,6 +19,16 @@
 ## Player
 
 <img width="960" height="540" alt="image" src="https://github.com/user-attachments/assets/1361ced6-efc0-41e9-bf30-a5ff547d3b10" />
+
+## Installation
+
+```sh
+git clone https://github.com/Ciphay/Vacuumflix.git
+cd Vacuumflix
+./build.sh            # builds the Flatpak and installs it
+```
+Or you can download the flatpak release [here](https://github.com/Ciphay/Vacuumflix/releases/tag/V1.0).
+
 
 ## Disclaimer
 
