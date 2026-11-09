@@ -22,13 +22,38 @@
 
 ## Installation
 
+Download the Flatpak from the [releases page](https://github.com/Ciphay/Vacuumflix/releases/tag/V1.0) and install it:
+
+```sh
+flatpak install --user Netflix.flatpak
+flatpak run io.vacuumflix.Vacuumflix
+```
+
+This is the recommended way, especially on **SteamOS** and **Bazzite**, whose root file systems are read-only.
+
+Or build it yourself:
+
 ```sh
 git clone https://github.com/Ciphay/Vacuumflix.git
 cd Vacuumflix
 ./build.sh            # builds the Flatpak and installs it
+flatpak run io.vacuumflix.Vacuumflix
+./build.sh package    # optional: standalone folder + single executable in dist/
 ```
-Or you can download the flatpak release [here](https://github.com/Ciphay/Vacuumflix/releases/tag/V1.0).
 
+Building needs `git`, `gcc`, `g++`, `pkg-config`, SDL2 and OpenGL ES development files, `node`, `ffmpeg`, `curl`, `xz`, `python3` with Pillow, the Noto fonts, and `flatpak` with the 25.08 runtimes:
+
+```sh
+flatpak install --user flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+```
+
+On Arch-based distros (tested on CachyOS):
+
+```sh
+sudo pacman -S git base-devel sdl2 nodejs ffmpeg curl python-pillow xz noto-fonts noto-fonts-cjk flatpak
+```
+
+Building on an immutable distro such as Bazzite has not been tested; use a `distrobox` container if you try.
 
 ## Disclaimer
 
