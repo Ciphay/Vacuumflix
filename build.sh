@@ -12,7 +12,7 @@ if [ ! -t 0 ] && [ -z "$VACUUMFLIX_TERM" ]; then
   done
 fi
 what="${1:-flatpak}"
-pause() { [ -z "$1" ] && [ -t 0 ] && { printf "Press Enter to close."; read -r _; }; }
+pause() { if [ -z "$1" ] && [ -t 0 ]; then printf "Press Enter to close."; read -r _; fi; return 0; }
 case "$what" in
   package)
     echo "[1/1] Building package..."

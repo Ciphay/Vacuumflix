@@ -835,7 +835,7 @@ globalThis.__reloadAsMember = (why)=>{
   if (why==='logout') { for (const k of ['NetflixId','SecureNetflixId']) jar.delete(k); jarSave(); }
   console.log(why==='logout' ? '[logout] saiu da conta -> reiniciando o host como visitante' : why==='retry' ? '[retry] tela de erro: reiniciando o boot' : why==='msl' ? '[msl] reiniciando o boot' : '[login] cookies de membro detectados -> reiniciando o host como membro');
   try{ __media.closeAll && __media.closeAll(); }catch{}
-  try{ cp.spawn('sh', ['-c', 'sleep 0.5; exec "$0" "$@"', process.env.PKG_NODE || process.execPath, ...process.argv.slice(1)], { detached:true, stdio:'inherit', env:Object.assign({}, process.env, { FAKELOGIN:'', VIEWER_PID: String(viewerProc && viewerProc.pid || ''), MSLRETRY: why==='msl' ? String((+process.env.MSLRETRY||0)+1) : '' }), cwd:process.cwd() }).unref(); }catch(e){ console.log('[login] falha ao reiniciar', e.message); globalThis.__restarting = false; return; }
+  try{ cp.spawn('sh', ['-c', 'sleep 0.5; kill -9 '+process.pid+' 2>/dev/null; sleep 0.2; exec "$0" "$@"', process.env.PKG_NODE || process.execPath, ...process.argv.slice(1)], { detached:true, stdio:'inherit', env:Object.assign({}, process.env, { FAKELOGIN:'', VIEWER_PID: String(viewerProc && viewerProc.pid || ''), MSLRETRY: why==='msl' ? String((+process.env.MSLRETRY||0)+1) : '' }), cwd:process.cwd() }).unref(); }catch(e){ console.log('[login] falha ao reiniciar', e.message); globalThis.__restarting = false; return; }
   globalThis.__restarting = true;
   setTimeout(()=>process.exit(0), 100);
 };
@@ -1317,7 +1317,11 @@ function startViewer(){
     try { other = +fs.readFileSync(LK, 'utf8'); } catch {}
     if (other && other !== process.pid) {
       let alive = false;
-      try { alive = fs.readFileSync('/proc/' + other + '/comm', 'utf8').trim() === fs.readFileSync('/proc/self/comm', 'utf8').trim(); } catch {}
+      try {
+        const st = fs.readFileSync('/proc/' + other + '/stat', 'utf8');
+        const state = st.slice(st.lastIndexOf(')') + 2, st.lastIndexOf(')') + 3);
+        alive = state !== 'Z' && state !== 'X' && fs.readFileSync('/proc/' + other + '/comm', 'utf8').trim() === fs.readFileSync('/proc/self/comm', 'utf8').trim();
+      } catch {}
       if (alive) { console.log('[host] outra instancia ja controla a janela (pid ' + other + '); saindo'); globalThis.__restarting = true; process.exit(0); }
     }
     fs.writeFileSync(LK, String(process.pid));
