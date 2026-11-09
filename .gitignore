@@ -1,0 +1,6 @@
+dist/
+__pycache__/
+*.pyc
+port2/cache/
+port2/data/cookies.json
+port2/data/esn.txt

@@ -1,0 +1,13 @@
+(this.webpackJsonp=this.webpackJsonp||[]).push([[18],{"5qMw":function(e,n,t){var i=t("TqRt").default
+n.__esModule=!0,n.ExitDialog=void 0
+var o,l,a,u,s,d,r,c,f,p,_,g=t("igsZ"),h=t("KzMI"),m=i(t("J4zp")),v=t("/P98"),x=i(t("vNte")),y=["onKeyDown"],k=["onKeyDown"],D="exitDialog",E=["key.back","key.left","key.right","key.up","key.down"]
+n.ExitDialog=(0,x.default)((function(e){var n,x=e.animation,T=e.exitOption,K=e.exitTimeout,b=e.onTransitionCompleted,w=e.visible,S=(0,v.useState)(!1),O=(0,m.default)(S,2),C=O[0],I=O[1],j=(0,(l||(l=t("RmPE"))).useStrings)((_||(_=t("YSJr"))).EXIT_DIALOG_STRING_KEYS).strings,q=(0,(u||(u=t("e9tE"))).useDispatch)(),M=(0,v.useCallback)((function(){return q((s||(s=t("NEM1"))).actions.historyPop())}),[q]),P=(0,v.useCallback)((function(){(0,(d||(d=t("O5/t"))).deleteSuspendTask)(D),null==M||M()}),[M]),z=(0,(a||(a=t("K0jP"))).useEvent)((function(){C||(0,(d||(d=t("O5/t"))).hasSuspendTask)(D)||((0,(f||(f=t("9q0e"))).shouldExit)(T)?((o||(o=t("Mmf2"))).consolidatedLogger.flush(),nrdp.log.flush(),setTimeout((function(){return nrdp.exit(T.exitCode)}),null!=K?K:200)):((0,(d||(d=t("O5/t"))).setSuspendTask)(D,P),(0,(void 0===c?c=i(t("KF44")):c).default)()),I(!0))}));(0,v.useEffect)((function(){null!=T&&T.showConfirmation||z()}),[T,z]),(0,v.useEffect)((function(){(0,(d||(d=t("O5/t"))).hasSuspendTask)(D)&&(0,(d||(d=t("O5/t"))).deleteSuspendTask)(D)}),[])
+var J,L=(0,v.useCallback)((function(e){!C&&(0,h.h)(E,e.uiEvent)||e.stopPropagation()}),[C])
+return C?(0,g.j)((p||(p=t("q9jZ"))).Dialog,{__update_handlers__:k,animation:x,focusKey:"exitDialog",message:null!=(J=null==j?void 0:j.exit_dialog_notification)?J:"",onKeyDown:L,onTransitionCompleted:b,visible:w},null,null):(0,g.j)((p||(p=t("q9jZ"))).Dialog,{__update_handlers__:y,animation:x,children:function(e){var n=e.focused
+return[(0,g.j)((r||(r=t("4+IH"))).Button,{align:"center-horizontal",focused:n,focusKey:"no",name:"no",onSubmit:M,submitOnKeyUp:!0,text:null==j?void 0:j.exit_dialog_cancel,width:300},"no",null),(0,g.j)((r||(r=t("4+IH"))).Button,{align:"center-horizontal",focusKey:"yes",name:"exit",onSubmit:z,submitOnKeyUp:!0,text:null==j?void 0:j.exit_dialog_confirm,width:300},"yes",null)]},focusKey:"exitDialog",message:null!=(n=null==j?void 0:j.exit_dialog_prompt)?n:"",onKeyDown:L,onTransitionCompleted:b,visible:w},null,null)}))},W0td:function(e,n,t){var i=t("TqRt").default
+n.__esModule=!0,n.default=void 0
+var o=t("5qMw"),l=i(t("Lk1/")),a=t("HYX5")
+n.default=new l.default({initialFocusPath:a.EXIT_DIALOG,payload:{ExitDialog:o.ExitDialog}})}}])
+
+
+//# sourceMappingURL=route.exit.c137b6597dee0304bb4f.js.map
