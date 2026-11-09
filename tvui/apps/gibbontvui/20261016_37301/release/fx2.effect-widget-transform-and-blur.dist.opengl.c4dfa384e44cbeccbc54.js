@@ -23,4 +23,3 @@ return a}r.r(t),r.d(t,"parseFloatOption",(function(){return a})),r.d(t,"parseInt
 e.exports={startLevel:0,maxBlurRadius:40,blurRadius:0,x:0,y:0,z:0,scale:1,opacity:1,focalPlane:0,rotationX:0,rotationY:0,rotationZ:0,padding:0,smoothEdges:!1,opacityThreshold:.025,debugUpdates:!1,originX:.5,originY:.5,relativeOrigin:!0,scaleMode:a.ScaleModeRelative,maxAllowedUpdates:-1}}])}}])
 
 
-//# sourceMappingURL=fx2.effect-widget-transform-and-blur.dist.opengl.c4dfa384e44cbeccbc54.js.map

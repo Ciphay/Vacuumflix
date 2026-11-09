@@ -201,4 +201,3 @@ return(0,s.j)(m,{animation:c,height:p,width:_,x:v,y:b},null,null)}
 var l,i,t,r,s=a("igsZ"),o=a("/P98"),d=a("eNcy"),u=a("oM/y"),c=a("ClEx"),p=a("Hg/B"),g=1,m=(0,d.s)("Widget","videoVignette",{backgroundImages:function(){return[(0,u.i)("kXz+halign=left+valign=stretch","videoVignette"),(0,u.i)("HjC+halign=stretch+valign=bottom","videoVignette")]},height:function(e){return e.height||(t||(t=a("8J/X"))).VIEWPORT_HEIGHT},name:"videoVignette",width:function(e){return e.width||(t||(t=a("8J/X"))).VIEWPORT_WIDTH},x:function(e){return e.x||(t||(t=a("8J/X"))).VIEWPORT_X},y:function(e){return e.y||(t||(t=a("8J/X"))).VIEWPORT_Y}},!1),y=p.Animation.fade({duration:c.Duration.Duration450,easing:c.Easing.EasingQuadraticIn,to:0}),k=p.Animation.fade({duration:1,from:1,to:1})}}])
 
 
-//# sourceMappingURL=route.browse.route.categoryLolomo.route.profiles.0bfebbfba73a45d11c38.js.map

@@ -1607,4 +1607,3 @@ if(void 0===a||!Object.prototype.hasOwnProperty.call(n,a))return!1
 if(e[a]!==n[a])return!1}return!0}}}])
 
 
-//# sourceMappingURL=urql.25282fe1df621bf020c1.js.map

@@ -35,4 +35,3 @@ o.__esModule=!0,o.passWidthToChildren=function(t){for(var o=t.children,l=t.clcsN
 r&&((0,(e||(e=n(24546))).setMetaProp)(r,"width",i,l),a&&(0,(e||(e=n(24546))).setMetaProp)(r,"forceWidth",!0,l))}}},5134:function(t,o){o.__esModule=!0,o.resolveBackgroundImage=function(t){if(null!=t&&t.url)return{halign:"aspect",url:t.url}}}}])
 
 
-//# sourceMappingURL=component.VerticalStackComponent.21e6ad9572d8dbd9b0d7.js.map

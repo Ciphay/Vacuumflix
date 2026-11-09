@@ -96,4 +96,3 @@ case 14:return l.prev=14,l.t0=l.catch(1),l.abrupt("return",[])
 case 17:case"end":return l.stop()}}),null,null,[[1,14]],Promise)}}}])
 
 
-//# sourceMappingURL=route.browseLegacy.284f322718801b2100d9.js.map

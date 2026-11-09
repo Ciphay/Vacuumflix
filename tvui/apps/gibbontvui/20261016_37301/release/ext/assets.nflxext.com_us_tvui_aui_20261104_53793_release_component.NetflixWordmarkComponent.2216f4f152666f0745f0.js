@@ -6,4 +6,3 @@ case"SMALL":return{height:32,width:118}
 default:return{height:40,width:147}}}}}])
 
 
-//# sourceMappingURL=component.NetflixWordmarkComponent.2216f4f152666f0745f0.js.map

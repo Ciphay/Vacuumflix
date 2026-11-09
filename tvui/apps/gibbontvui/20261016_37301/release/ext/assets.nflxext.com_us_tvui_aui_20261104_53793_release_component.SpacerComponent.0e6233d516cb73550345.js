@@ -4,4 +4,3 @@ return"vertical"===k?g?(0,o.j)(c,{height:null!=(p=(0,(void 0===u?u=l(e(7065)):u)
 var i,u,a,o=e(80569),r=e(35070),c=(0,r.s)("Widget","VSpacer",{height:function(n){return n.height},name:function(n){return n.name},width:1},!1),d=(0,r.s)("Widget","HSpacer",{height:1,name:function(n){return n.name},width:function(n){return n.width}},!1)}}])
 
 
-//# sourceMappingURL=component.SpacerComponent.0e6233d516cb73550345.js.map

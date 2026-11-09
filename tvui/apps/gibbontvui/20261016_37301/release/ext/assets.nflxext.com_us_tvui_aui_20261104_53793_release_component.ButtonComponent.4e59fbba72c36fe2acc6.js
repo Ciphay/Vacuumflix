@@ -90,4 +90,3 @@ return e.IconTypeByKebabName[t]=t,e.IconTypeByPascalCaseKey[n]=t,e}),{IconTypeBy
 function l(e){return!(!e||!s[e])}}}])
 
 
-//# sourceMappingURL=component.ButtonComponent.4e59fbba72c36fe2acc6.js.map

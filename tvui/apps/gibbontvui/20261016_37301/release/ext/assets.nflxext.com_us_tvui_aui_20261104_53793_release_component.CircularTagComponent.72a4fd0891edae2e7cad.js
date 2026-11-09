@@ -6,4 +6,3 @@ return null!=L&&L.value?(0,c.j)((u||(u=a(15194))).DynamicBorderImage,(0,d.defaul
 var i,l,u,o,r,T,c=a(80569),d=n(a(93090)),h=a(38159),g=a(50784),p=["center-vertical","center-horizontal"],s=new Set(["EXTRA_SMALL","SMALL","MEDIUM","LARGE","EXTRA_LARGE"]),x={EXTRA_LARGE:{height:80,textType:g.TextType.TagTextExtraLarge},EXTRA_SMALL:{height:20,textType:g.TextType.TagTextExtraSmall},LARGE:{height:42,textType:g.TextType.TagTextLarge},MEDIUM:{height:34,textType:g.TextType.TagTextMedium},SMALL:{height:24,textType:g.TextType.TagTextSmall}}}}])
 
 
-//# sourceMappingURL=component.CircularTagComponent.72a4fd0891edae2e7cad.js.map

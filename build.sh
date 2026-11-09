@@ -1,5 +1,4 @@
 #!/bin/sh
-# Build helper. Usage: ./build.sh package | flatpak
 set -e
 cd "$(dirname "$0")"
 case "$1" in

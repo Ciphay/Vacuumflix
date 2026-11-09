@@ -48,4 +48,3 @@ var s,i=(0,n("9IR/").getFeatures)(),o=i.enableDepthTransition,a=i.routeTransitio
 s=o?n("4fqt").withDepthTransitionRoot:a?n("ViK9").withTransitionAnimation:n("P1w9").identity,t.withTransitionAnimation=s}}])
 
 
-//# sourceMappingURL=route.browseByLolomoType.a666fc2a704a6f946854.js.map

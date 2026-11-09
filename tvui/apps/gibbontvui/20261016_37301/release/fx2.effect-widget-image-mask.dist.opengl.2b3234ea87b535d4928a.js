@@ -11,4 +11,3 @@ o.FX2RenderModuleName="ImageMask",o.init=function(){return a.init("ImageMaskRend
 e.exports={opacity:1,maskScale:1,wrap:a.Repeat}},function(e,t){e.exports={Repeat:0,RepeatX:1,RepeatY:2,NoRepeat:3}}])}}])
 
 
-//# sourceMappingURL=fx2.effect-widget-image-mask.dist.opengl.2b3234ea87b535d4928a.js.map

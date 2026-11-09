@@ -55,4 +55,3 @@ return(0,u.j)(f,{animation:c,height:g,width:m,x:y,y:b},null,null)}
 var i,a,r,o,u=n("igsZ"),l=n("/P98"),d=n("eNcy"),s=n("oM/y"),c=n("ClEx"),g=n("Hg/B"),v=1,f=(0,d.s)("Widget","videoVignette",{backgroundImages:function(){return[(0,s.i)("kXz+halign=left+valign=stretch","videoVignette"),(0,s.i)("HjC+halign=stretch+valign=bottom","videoVignette")]},height:function(e){return e.height||(r||(r=n("8J/X"))).VIEWPORT_HEIGHT},name:"videoVignette",width:function(e){return e.width||(r||(r=n("8J/X"))).VIEWPORT_WIDTH},x:function(e){return e.x||(r||(r=n("8J/X"))).VIEWPORT_X},y:function(e){return e.y||(r||(r=n("8J/X"))).VIEWPORT_Y}},!1),p=g.Animation.fade({duration:c.Duration.Duration450,easing:c.Easing.EasingQuadraticIn,to:0}),h=g.Animation.fade({duration:1,from:1,to:1})}}])
 
 
-//# sourceMappingURL=route.details.e97d66505682c356cfc4.js.map

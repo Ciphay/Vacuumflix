@@ -11,4 +11,3 @@ s.FX2RenderModuleName="Shine",s.init=function(){return o.init("ShineRender",s,i)
 e.exports={color:"#ffffff",additive:!0,intensity:1,width:1,angle:100,sharpness:0,autoMotion:!0,position:.5,speed:1e3,pause:200,easing:o.Animation.EasingOutQuartic}}])}}])
 
 
-//# sourceMappingURL=fx2.effect-widget-shine.dist.opengl.8312e288a381a95aa5a2.js.map

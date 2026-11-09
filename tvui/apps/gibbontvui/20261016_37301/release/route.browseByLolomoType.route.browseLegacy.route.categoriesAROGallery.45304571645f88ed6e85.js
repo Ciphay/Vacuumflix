@@ -1163,4 +1163,3 @@ if(s&&s.index&&(0,(a||(a=n("3yUc"))).isNonSelectableRow)(p(t.summary,s.index))){
 t.onDataIdChange(t.lolomoType,i,d,u)}else t.onDataIdChange(t.lolomoType,i,d,s)}else(0,(a||(a=n("3yUc"))).isNonSelectableRow)(p(t.summary,t.index))&&(e.index>t.index?this.handleIndexChange(t.index-1):this.handleIndexChange(t.index+1))},d}(v.Component),t.displayName=(0,d.higherOrderName)("onDataIdChangeHandler",e),t.propTypes={dataId:g.default.string,loadedDataId:g.default.string,onDataIdChange:g.default.func.isRequired},t}}}])
 
 
-//# sourceMappingURL=route.browseByLolomoType.route.browseLegacy.route.categoriesAROGallery.45304571645f88ed6e85.js.map

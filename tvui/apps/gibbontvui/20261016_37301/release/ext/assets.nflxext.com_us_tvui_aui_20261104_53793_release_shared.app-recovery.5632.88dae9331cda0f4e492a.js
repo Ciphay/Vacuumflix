@@ -5,4 +5,3 @@ function l(e){e.uiDataCacheRefresh&&h(),e.uiBookmarksCacheRefresh&&p(),e.uiRefre
 return null==(e=nrdp.gibbon.diskCache)?void 0:e.clear()})),d("Surface cache",(function(){return null==nrdp.gibbon.garbageCollect?void 0:nrdp.gibbon.garbageCollect(void 0,"graphics")})),d("Sprite caches",(function(){(0,t.clearSpriteCache)(),(0,t.clearUrlCache)()})),d("UIBoot fallback",(n||(n=a(32485))).clearFallbackUibootData)}function s(){(0,a(91818).invalidateQueryResults)()}function p(){u.onEvictBookmarkCaches&&d("Bookmark caches",u.onEvictBookmarkCaches)}function f(){(0,(void 0===r?r=c(a(79633)):r).default)({origin:"appRecovery"})}function d(e,o){try{o()}catch(o){try{new i.default({data:{label:e},innerError:o instanceof Error?o:{message:o+""},persistToPrototype:!1,source:"appRecovery",type:"AppRecoveryCacheEvictionError"}).logAsHandledException()}catch(e){}}}}}])
 
 
-//# sourceMappingURL=shared.app-recovery.5632.88dae9331cda0f4e492a.js.map

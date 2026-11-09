@@ -11,4 +11,3 @@ u.FX2RenderModuleName="GradientOverlay",u.init=function(){return a.init("Gradien
 e.exports={opacity:1,gradient:[{stop:0,color:"#000000"},{stop:1,color:"#ffffff"}],angle:0,scale:1,sampleSize:16,offsetX:0,offsetY:0,blendMode:n.BlendModeNormal,shape:n.ShapeLinear}},function(e,t){e.exports={ShapeLinear:0,ShapeCircular:1,BlendModeNormal:0,BlendModeAdditive:1}}])}}])
 
 
-//# sourceMappingURL=fx2.effect-widget-gradient-overlay.dist.opengl.60e5613b4a1e8c4bbcbf.js.map

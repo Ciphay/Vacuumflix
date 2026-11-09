@@ -21,4 +21,3 @@ var o,a,r,l=n(70413),i=n(25545)
 function u(e){return!!e&&(0,l.h)(Object.keys((r||(r=n(50784))).TextType),e)}function c(e){return!!e&&((0,l.h)(Object.keys((o||(o=n(24243))).Colors),e)||(0,l.h)(Object.keys((a||(a=n(47717))).FoundationalColors),e))}}}])
 
 
-//# sourceMappingURL=component.TextComponent.85468bb791353d9aed46.js.map

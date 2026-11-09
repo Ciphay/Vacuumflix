@@ -11,4 +11,3 @@ s.FX2RenderModuleName="Warp",s.init=function(){return n.init("WarpRender",s,l)},
 e.exports={useWidgetContent:!0,amplitude:.15,frequency:.75,rotation:1,scrollSpeed:.25,scrollAngle:45,frequencyBlend:.05,motionType:n.MotionScroll,debug:!1}}])}}])
 
 
-//# sourceMappingURL=fx2.effect-widget-warp.dist.opengl.6416af4f6597e055e03d.js.map

@@ -1330,4 +1330,3 @@ n.__esModule=!0,n.useUpdateByEmailActions=function(e){var n,a=e.flow,u=e.mode,r=
 return u===(o||(o=t("Q6G7"))).MODES.MHU_ISTB_HOUSEHOLD_UPDATE_USING_EMAIL?{backAction:r.backAction,nextAction:r.nextAction,pollAction:r.pollAction,updateHouseholdByTextAction:r.mhuConfirmISTBByTextAction,updateHouseholdResendEmailAction:r.mhuConfirmISTBResendEmailAction}:{backAction:null!=(n=r.backAction)?n:{action:"backAction",fieldType:"Action",flow:a,mode:u,withFields:["previousMode"]},nextAction:r.nextAction,pollAction:r.pollAction,updateHouseholdByTextAction:r.mhuUpdateHouseholdByTextAction,updateHouseholdResendEmailAction:r.mhuUpdateHouseholdResendEmailAction}}}}])
 
 
-//# sourceMappingURL=route.accountSharing.cd3f457744db63feff69.js.map

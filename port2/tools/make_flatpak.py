@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""Build the FLATPAK bundle of the app from the same self-contained directory that make_package.py produces.
-
-Usage: make_flatpak.py [--app-id ID] [--tree DIR] [--out FILE.flatpak] [--reuse-tree]
-
-1) builds the self-contained directory (node, ffmpeg, curl, python+PIL, glibc, cdmhost+CDM, viewer, UI, splash, fonts)
-   with make_package.py (SKIP_SINGLE=1: directory only);
-2) copies it to /app/netflix-port of a Flatpak app (runtime org.freedesktop.Platform);
-3) the Flatpak launcher builds, at every start, a writable tree of links under ~/.var/app/<ID>/data/netflix
-   (/app is read-only): login (data), cache and downloaded UI chunks live in persistent user folders;
-4) exports the repository and writes the .flatpak bundle (install with: flatpak install --user Netflix.flatpak).
-
-Requires flatpak and the org.freedesktop.Sdk / org.freedesktop.Platform runtimes (same branch) installed.
-"""
 import argparse, glob, hashlib, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -20,8 +7,8 @@ ROOT = os.path.dirname(PORT2)
 DIST = os.path.join(ROOT, 'dist')
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--app-id', default='io.github.netflixport.Netflix')
-ap.add_argument('--tree', default=os.path.join(DIST, 'flatpak', 'netflix-port'))
+ap.add_argument('--app-id', default='io.vacuumflix.Vacuumflix')
+ap.add_argument('--tree', default=os.path.join(DIST, 'flatpak', 'vacuumflix'))
 ap.add_argument('--out', default=os.path.join(DIST, 'Netflix.flatpak'))
 ap.add_argument('--reuse-tree', action='store_true', help='do not rebuild the directory if --tree already exists')
 ap.add_argument('--branch', default='stable')
@@ -41,7 +28,7 @@ def run(*a, **k):
 LAUNCHER = r'''#!/bin/sh
 # Flatpak launcher. /app is read-only, so the app runs from a writable tree of links in $XDG_DATA_HOME/netflix;
 # login (data), cache and downloaded UI chunks live in persistent folders next to it.
-SRC=/app/netflix-port
+SRC=/app/vacuumflix
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}/netflix"
 ROOT="$DATA/root"
 mkdir -p "$DATA/data" "$DATA/cache/fonts" "$DATA/home" || exit 1
@@ -108,13 +95,11 @@ METAINFO = '''<?xml version="1.0" encoding="UTF-8"?>
 
 
 def strip_tools():
-    """Maintainer-only helpers (present in the development tree, not in the published repository)."""
     names = ('strip_comments.js', 'strip_comments.py')
     return all(os.path.exists(os.path.join(HERE, n)) for n in names)
 
 
 def sanitize(root):
-    """Prepare /app/netflix-port: drop files the Flatpak does not need and, when the maintainer tools exist, strip comments from the copies."""
     p2 = os.path.join(root, 'port2')
     for f in (os.path.join(root, 'README.txt'),):
         if os.path.exists(f):
@@ -138,8 +123,8 @@ def main():
         shutil.rmtree(BUILD)
     run('flatpak', 'build-init', BUILD, APP_ID, 'org.freedesktop.Sdk', 'org.freedesktop.Platform', A.runtime_branch)
     files = os.path.join(BUILD, 'files')
-    run('cp', '-a', '--reflink=auto', A.tree, os.path.join(files, 'netflix-port'))
-    sanitize(os.path.join(files, 'netflix-port'))
+    run('cp', '-a', '--reflink=auto', A.tree, os.path.join(files, 'vacuumflix'))
+    sanitize(os.path.join(files, 'vacuumflix'))
     os.makedirs(os.path.join(files, 'bin'), exist_ok=True)
     launcher = os.path.join(files, 'bin', 'netflix')
     with open(launcher, 'w') as f:

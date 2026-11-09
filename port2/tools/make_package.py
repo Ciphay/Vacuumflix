@@ -1,24 +1,10 @@
 #!/usr/bin/env python3
-"""Build a SELF-CONTAINED directory (and a single self-extracting executable) of the app.
-
-Usage: make_package.py [output_dir]        (default: <root>/dist/netflix-port)
-Environment: SKIP_SINGLE=1 builds only the directory; WVCDM_SRC=<file or dir> overrides the bundled Widevine CDM.
-
-Strategy ("AppImage without squashfs"): copy the binaries (node, ffmpeg, curl, python+PIL, cdmhost, scene_viewer)
-together with their shared-library closure (ldd) and glibc itself (ld-linux + libc), and run everything through
-`ld-linux --library-path sys/lib binary` wrappers, so it also runs on distributions with an older glibc.
-Not bundled: GPU/driver libraries (libGL*, libEGL*, libGLES*, libgbm, nvidia...). The target needs x86_64,
-a video driver with OpenGL ES/EGL, a PulseAudio-compatible sound server, /bin/sh, mkfifo and /dev/shm.
-
-The two native programs (scene_viewer, cdmhost) are compiled from source here. The UI scripts live in <root>/tvui
-and the Widevine CDM in port2/cdm (both stored in the repository so a build never depends on a remote server).
-"""
 import glob, os, re, shutil, subprocess, sys, tarfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT2 = os.path.dirname(HERE)
 ROOT = os.path.dirname(PORT2)
-OUT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'dist', 'netflix-port'))
+OUT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'dist', 'vacuumflix'))
 SYS = os.path.join(OUT, 'sys'); LIB = os.path.join(SYS, 'lib'); LIBEXEC = os.path.join(SYS, 'libexec'); BIN = os.path.join(OUT, 'bin')
 
 EXCLUDE = re.compile(r'^(linux-vdso|libGL(ESv[12])?\.|libGLdispatch|libGLX|libEGL|libOpenGL|libgbm|libnvidia|libcuda|libnvcuvid|libvdpau_|libdrm_(amdgpu|intel|nouveau|radeon))')
@@ -104,7 +90,6 @@ def find_font(name):
 
 
 def find_cdm():
-    """Return (directory, libwidevinecdm.so path) of a Widevine CDM installed on the build machine."""
     src = os.environ.get('WVCDM_SRC')
     cands = [src] if src else [os.path.join(PORT2, 'cdm')] + [os.path.expanduser(c) for c in CDM_CANDIDATES]
     for c in cands:

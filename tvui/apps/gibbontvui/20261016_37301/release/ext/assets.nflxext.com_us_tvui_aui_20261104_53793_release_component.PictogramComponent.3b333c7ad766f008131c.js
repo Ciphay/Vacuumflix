@@ -5,4 +5,3 @@ return(0,u.j)((t||(t=o(42192))).Pictogram,{layoutSpacing:E,name:p,size:R,type:M,
 var t,l,u=o(80569),i={EXTRA_LARGE:"EXTRA_LARGE",LARGE:"LARGE",MEDIUM:"MEDIUM",SMALL:"SMALL"},r={COOL:"cool",CORE:"core",NEUTRAL:"neutral",WARM:"warm"}}}])
 
 
-//# sourceMappingURL=component.PictogramComponent.3b333c7ad766f008131c.js.map
