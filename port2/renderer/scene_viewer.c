@@ -309,6 +309,7 @@ int main(int argc,char**argv){
     SDL_Window*win=SDL_CreateWindow("Netflix",
         SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,W,H,SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
     { const char*ib=getenv("NETFLIX_ICON_BMP"); if(ib){ SDL_Surface*is=SDL_LoadBMP(ib); if(is){ SDL_SetWindowIcon(win,is); SDL_FreeSurface(is); } } }
+    if(getenv("NETFLIX_FULLSCREEN")) SDL_SetWindowFullscreen(win,SDL_WINDOW_FULLSCREEN_DESKTOP);
     SDL_GLContext ctx=SDL_GL_CreateContext(win); SDL_GL_SetSwapInterval(1); gl_init();
     printf("[viewer] lendo cena de: %s (hot-reload). ESC/fechar p/ sair.\n", scenefile);
     Widget*scene=NULL; int vw=1920,vh=1080; long long lastm=0;
@@ -324,6 +325,7 @@ int main(int argc,char**argv){
         { struct timespec ts; clock_gettime(CLOCK_REALTIME,&ts); g_now_ms=ts.tv_sec*1000.0+ts.tv_nsec/1e6; }
         pad_tick();
         SDL_Event e; while(SDL_PollEvent(&e)){ if(e.type==SDL_QUIT)running=0; pad_event(&e);
+            if(e.type==SDL_KEYDOWN&&e.key.keysym.sym==SDLK_F11&&!e.key.repeat){ SDL_SetWindowFullscreen(win,(SDL_GetWindowFlags(win)&SDL_WINDOW_FULLSCREEN_DESKTOP)?0:SDL_WINDOW_FULLSCREEN_DESKTOP); }
             if(e.type==SDL_KEYDOWN||e.type==SDL_KEYUP){ const char*nm=NULL; switch(e.key.keysym.sym){ case SDLK_UP:nm="up";break; case SDLK_DOWN:nm="down";break; case SDLK_LEFT:nm="left";break; case SDLK_RIGHT:nm="right";break;
                     case SDLK_RETURN:case SDLK_KP_ENTER:case SDLK_SPACE:nm="enter";break; case SDLK_BACKSPACE:case SDLK_ESCAPE:nm="back";break;  case SDLK_PAGEUP:nm="pageup";break; case SDLK_PAGEDOWN:nm="pagedown";break; default:break; }
                 if(nm){ printf("KEY %s %d %d\n",nm,e.type==SDL_KEYDOWN,e.key.repeat); fflush(stdout); } } }
