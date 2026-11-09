@@ -22,7 +22,7 @@
 
 ## Installation
 
-Download the Flatpak from the [releases page](https://github.com/Ciphay/Vacuumflix/releases/tag/V1.0) and install it:
+Download the Flatpak or the .tar.gz file from the [releases page](https://github.com/Ciphay/Vacuumflix/releases/tag/V1.0) and install it:
 
 ```sh
 flatpak install --user Netflix.flatpak
