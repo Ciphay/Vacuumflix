@@ -2,12 +2,17 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+static int g_sc_on=0; static int g_sc[4]; static int g_cursor_want=0, g_cursor_cur=0;
 #include <sys/stat.h>
 #include <SDL2/SDL.h>
 #include <time.h>
 #include <math.h>
 #include <pthread.h>
 #include <GLES3/gl3.h>
+static int ws_mode=0, ws_w=1280, ws_h=720, ws_x=-1, ws_y=-1;
+static void ws_load(void){ const char*p=getenv("WINDOW_STATE"); if(!p) return; FILE*f=fopen(p,"r"); if(!f) return; int m,w,h,x,y; if(fscanf(f,"%d %d %d %d %d",&m,&w,&h,&x,&y)==5){ if(m>=0&&m<=2) ws_mode=m; if(w>=320&&w<=16384&&h>=240&&h<=16384){ ws_w=w; ws_h=h; } ws_x=x; ws_y=y; } fclose(f); }
+static void ws_save(void){ const char*p=getenv("WINDOW_STATE"); if(!p) return; FILE*f=fopen(p,"w"); if(!f) return; fprintf(f,"%d %d %d %d %d\n",ws_mode,ws_w,ws_h,ws_x,ws_y); fclose(f); }
+static void ws_track(SDL_Window*win){ Uint32 fl=SDL_GetWindowFlags(win); if(fl&SDL_WINDOW_FULLSCREEN_DESKTOP) ws_mode=2; else if(fl&SDL_WINDOW_MAXIMIZED) ws_mode=1; else { ws_mode=0; SDL_GetWindowSize(win,&ws_w,&ws_h); SDL_GetWindowPosition(win,&ws_x,&ws_y); } ws_save(); }
 
 static int g_splash_ready; static int g_splash_reset_req=0;
 typedef struct { int prop; float base, from, to; double t0, dur; int mode, fam; } Anim;
@@ -15,7 +20,7 @@ typedef struct Widget {
     Anim an[10]; int nan;
     float x,y,w,h; unsigned int color; float opacity, scale;
     char* items[6]; char kinds[6]; float ia[6]; float uv[6][4]; int nitems; int clip;
-    float cr; float fxins; int hasfx; float fxr, fxsw; float fxstroke[4], fxfill[4]; int fxgrad; float fxg[4]; int fxn; float fxpos[4]; float fxcol[4][4];
+    float cr; float shblur, shalpha; float fxins; int hasfx; float fxr, fxsw; float fxstroke[4], fxfill[4]; int fxgrad; float fxg[4]; int fxn; float fxpos[4]; float fxcol[4][4];
     struct Widget **children; int nchildren, cap;
 } Widget;
 
@@ -31,6 +36,7 @@ static Widget* parse_scene(const char*path,int*vw,int*vh){
     while(fgets(line,sizeof line,f)){
         if(line[0]=='#'||line[0]=='\n') continue;
         if(line[0]=='V'){ sscanf(line,"VIEW %d %d",vw,vh); continue; }
+        if(line[0]=='C' && !strncmp(line,"CURSOR ",7)){ g_cursor_want=atoi(line+7); continue; }
         if(line[0]=='S' && !strncmp(line,"SPLASH ",7)){ int nv=0; long bid=0; sscanf(line+7,"%d %ld",&nv,&bid); static long g_boot_id=0; if((g_splash_ready==1 && nv==0) || (bid && g_boot_id && bid!=g_boot_id)) g_splash_reset_req=1; if(bid) g_boot_id=bid; g_splash_ready=nv; continue; }
         if((line[0]=='I'||line[0]=='T'||line[0]=='M') && line[1]==' ' && sp>0){
             Widget*cur=stack[sp-1]; if(cur->nitems<6){ char path[400]; int bg=0; float u[4]={0,0,1,1}; int n=sscanf(line+2,"%399s %d %f %f %f %f",path,&bg,&u[0],&u[1],&u[2],&u[3]); if(n>=1){ cur->items[cur->nitems]=strdup(path); cur->kinds[cur->nitems]=line[0]; cur->ia[cur->nitems]=(line[0]=='M' && n>=2)?bg/100.f:1.f; memcpy(cur->uv[cur->nitems],u,sizeof u); cur->nitems++; } } continue; }
@@ -40,6 +46,7 @@ static Widget* parse_scene(const char*path,int*vw,int*vh){
                 cur->fxgrad=gr; memcpy(cur->fxg,g,sizeof g); cur->fxn=0;
                 if(gr){ const char*q=line+2+off; for(int i=0;i<n2&&i<4;i++){ float pos; unsigned int cc; int used=0; if(sscanf(q,"%f %x%n",&pos,&cc,&used)<2) break; q+=used; cur->fxpos[i]=pos; for(int k=0;k<4;k++) cur->fxcol[i][k]=((cc>>(24-8*k))&255)/255.f; cur->fxn++; } } }
             continue; }
+        if(line[0]=='H' && line[1]==' ' && sp>0){ sscanf(line+2,"%f %f",&stack[sp-1]->shblur,&stack[sp-1]->shalpha); continue; }
         if(line[0]=='J' && line[1]==' ' && sp>0){ sscanf(line+2,"%f",&stack[sp-1]->fxins); continue; }
         if(line[0]=='K' && line[1]==' ' && sp>0){ sscanf(line+2,"%f",&stack[sp-1]->cr); continue; }
         if(line[0]=='C' && line[1]==' ' && sp>0){ stack[sp-1]->clip=1; continue; }
@@ -171,11 +178,12 @@ static Tex* vid_get(const char*path){
             v->t.w=hdr[0]; v->t.h=hdr[1]; v->seq=hdr[2]; }
         free(px); }
     fclose(f); return v->t.tex?&v->t:NULL; }
+static GLuint uRSh;
 static GLuint rprog,uRRect,uRView,uRUV,uRSize,uRRad,uRSW,uRSC,uRFill,uRGrad,uRGOn,uRN,uRPos,uRCol,uRAlpha;
 static const char* RFS=
 "#version 300 es\n"
 "precision highp float; in vec2 vUV; in vec2 vPos; out vec4 o;\n"
-"uniform vec2 uSize; uniform float uRad,uSW,uAlpha; uniform vec4 uSC,uFill,uGrad; uniform int uGOn,uN; uniform float uPos[4]; uniform vec4 uCol[4];\n"
+"uniform vec2 uSize; uniform vec2 uSh; uniform float uRad,uSW,uAlpha; uniform vec4 uSC,uFill,uGrad; uniform int uGOn,uN; uniform float uPos[4]; uniform vec4 uCol[4];\n"
 "void main(){ vec2 p=(vUV-0.5)*uSize; vec2 b=uSize*0.5; float r=min(uRad,min(b.x,b.y));\n"
 " vec2 q=abs(p)-b+r; float d=length(max(q,0.0))+min(max(q.x,q.y),0.0)-r;\n"
 " float cov=clamp(0.5-d,0.0,1.0);\n"
@@ -184,7 +192,8 @@ static const char* RFS=
 "   for(int i=1;i<4;i++){ if(i<uN && t>=uPos[i-1]){ float w=clamp((t-uPos[i-1])/max(uPos[i]-uPos[i-1],1e-6),0.0,1.0); f=mix(uCol[i-1],uCol[i],w);} }\n"
 "   if(t>=uPos[uN-1]) f=uCol[uN-1]; }\n"
 " vec4 c=vec4(f.rgb*f.a,f.a);\n"
-" if(uSW>0.0){ float ring=clamp(0.5-(abs(d+uSW*0.5)-uSW*0.5),0.0,1.0); vec4 sc=vec4(uSC.rgb*uSC.a,uSC.a); c=c*(1.0-ring)+sc*ring; }\n"
+" if(uSW>0.0){ float ring=clamp(0.5-(abs(d+uSW*0.5)-uSW*0.5),0.0,1.0); vec4 sc=vec4(uSC.rgb*uSC.a,uSC.a); c=c*(1.0-ring)+sc*ring;\n"
+"   if(uSh.y>0.0){ float din=-d-uSW; if(din>0.0){ float s=uSh.y*pow(1.0-smoothstep(0.0,uSh.x,din),1.5); c+=vec4(0.0,0.0,0.0,s)*(1.0-c.a); } } }\n"
 " o=c*cov*uAlpha; }\n";
 static const char* TFS=
 "#version 300 es\n"
@@ -203,7 +212,7 @@ static void gl_init(void){ GLuint vs=compile(GL_VERTEX_SHADER,VS),fs=compile(GL_
       uTRect=glGetUniformLocation(tprog,"uRect"); uTView=glGetUniformLocation(tprog,"uView"); uTAlpha=glGetUniformLocation(tprog,"uAlpha"); uTSamp=glGetUniformLocation(tprog,"uTex"); uTUV=glGetUniformLocation(tprog,"uUV"); uTSize=glGetUniformLocation(tprog,"uSize"); uTRad=glGetUniformLocation(tprog,"uRad"); uTFade=glGetUniformLocation(tprog,"uFade"); uTQuad=glGetUniformLocation(tprog,"uQuad"); uTClip=glGetUniformLocation(tprog,"uClip"); uTClipRad=glGetUniformLocation(tprog,"uClipRad"); if(getenv("VIEWDBG")) fprintf(stderr,"[vdbg] uniform locs rect=%d view=%d alpha=%d samp=%d uv=%d size=%d rad=%d fade=%d\n",(int)uTRect,(int)uTView,(int)uTAlpha,(int)uTSamp,(int)uTUV,(int)uTSize,(int)uTRad,(int)uTFade); }
     { GLuint rf=compile(GL_FRAGMENT_SHADER,RFS); rprog=glCreateProgram(); glAttachShader(rprog,vs); glAttachShader(rprog,rf); glLinkProgram(rprog);
       uRRect=glGetUniformLocation(rprog,"uRect"); uRView=glGetUniformLocation(rprog,"uView"); uRUV=glGetUniformLocation(rprog,"uUV"); uRSize=glGetUniformLocation(rprog,"uSize");
-      uRRad=glGetUniformLocation(rprog,"uRad"); uRSW=glGetUniformLocation(rprog,"uSW"); uRSC=glGetUniformLocation(rprog,"uSC"); uRFill=glGetUniformLocation(rprog,"uFill");
+      uRSh=glGetUniformLocation(rprog,"uSh"); uRRad=glGetUniformLocation(rprog,"uRad"); uRSW=glGetUniformLocation(rprog,"uSW"); uRSC=glGetUniformLocation(rprog,"uSC"); uRFill=glGetUniformLocation(rprog,"uFill");
       uRGrad=glGetUniformLocation(rprog,"uGrad"); uRGOn=glGetUniformLocation(rprog,"uGOn"); uRN=glGetUniformLocation(rprog,"uN"); uRPos=glGetUniformLocation(rprog,"uPos"); uRCol=glGetUniformLocation(rprog,"uCol"); uRAlpha=glGetUniformLocation(rprog,"uAlpha"); }
     uCUV=glGetUniformLocation(prog,"uUV");
     uRect=glGetUniformLocation(prog,"uRect"); uView=glGetUniformLocation(prog,"uView"); uColor=glGetUniformLocation(prog,"uColor");
@@ -220,12 +229,16 @@ static void draw(Widget*wd,float ox,float oy,float ps,float po,int vw,int vh){
         g_anim_seen=1; switch(an->prop){ case 0: wx+=v-an->base; break; case 1: wy+=v-an->base; break; case 2: wop=v; break; case 3: ww_+=v-an->base; break; case 4: hh_+=v-an->base; break; default: wsc=v<=0?1:v; } } }
     float sc=ps*wsc, op=po*wop;
     float cx=ox+wx+ww_*0.5f, cy=oy+wy+hh_*0.5f, w=ww_*sc, h=hh_*sc, px=cx-w*0.5f, py=cy-h*0.5f;
+    { static int snap=-1; if(snap<0) snap=getenv("NOSNAP")?0:1;
+      if(snap && g_dw>0 && g_dh>0 && vw>0 && vh>0){ float sxx=(float)g_dw/vw, syy=(float)g_dh/vh, x1=px+w, y1=py+h;
+        if(wd->hasfx && wd->fxsw>0.f){ float a0=ceilf(px*sxx), b0=ceilf(py*syy), a1=floorf(x1*sxx), b1=floorf(y1*syy); if(a1>a0 && b1>b0){ px=a0/sxx; py=b0/syy; w=(a1-a0)/sxx; h=(b1-b0)/syy; } }
+        else { px=roundf(px*sxx)/sxx; py=roundf(py*syy)/syy; w=roundf(x1*sxx)/sxx-px; h=roundf(y1*syy)/syy-py; } } }
     unsigned int c=wd->color; float r=((c>>24)&255)/255.f,g=((c>>16)&255)/255.f,b=((c>>8)&255)/255.f,a=(c&255)/255.f; a*=op;
     if(wd->hasfx && op>0.001f){ float ins=wd->fxins*sc, fpy=py+ins, fh=h-2*ins, frad=wd->fxr*sc; if(ins>0 && frad>fh*0.5f) frad=fh*0.5f; glUseProgram(rprog); glBindVertexArray(vao); glUniform4f(uRRect,px,fpy,w,fh); glUniform4f(uRUV,0,0,1,1); glUniform2f(uRView,vw,vh); glUniform2f(uRSize,w,fh);
-        glUniform1f(uRRad,frad); glUniform1f(uRSW,wd->fxsw*sc); glUniform4fv(uRSC,1,wd->fxstroke); glUniform4fv(uRFill,1,wd->fxfill); glUniform1i(uRGOn,wd->fxn>0?wd->fxgrad:0); glUniform4fv(uRGrad,1,wd->fxg);
+        glUniform1f(uRRad,frad); glUniform2f(uRSh,wd->shblur*sc,wd->shalpha); glUniform1f(uRSW,wd->fxsw*sc); glUniform4fv(uRSC,1,wd->fxstroke); glUniform4fv(uRFill,1,wd->fxfill); glUniform1i(uRGOn,wd->fxn>0?wd->fxgrad:0); glUniform4fv(uRGrad,1,wd->fxg);
         glUniform1i(uRN,wd->fxn>0?wd->fxn:1); glUniform1fv(uRPos,4,wd->fxpos); glUniform4fv(uRCol,4,&wd->fxcol[0][0]); glUniform1f(uRAlpha,op); glDrawArrays(GL_TRIANGLE_STRIP,0,4); }
     else if(a>0.001f && wd->cr>0){ glUseProgram(rprog); glBindVertexArray(vao); glUniform4f(uRRect,px,py,w,h); glUniform4f(uRUV,0,0,1,1); glUniform2f(uRView,vw,vh); glUniform2f(uRSize,w,h);
-        glUniform1f(uRRad,wd->cr*sc); glUniform1f(uRSW,0); float z4[4]={0,0,0,0}; float f4[4]={r,g,b,a/(op>0?op:1)}; glUniform4fv(uRSC,1,z4); glUniform4fv(uRFill,1,f4); glUniform1i(uRGOn,0); glUniform4fv(uRGrad,1,z4); glUniform1i(uRN,1); glUniform1f(uRAlpha,op); glDrawArrays(GL_TRIANGLE_STRIP,0,4); }
+        glUniform1f(uRRad,wd->cr*sc); glUniform2f(uRSh,0,0); glUniform1f(uRSW,0); float z4[4]={0,0,0,0}; float f4[4]={r,g,b,a/(op>0?op:1)}; glUniform4fv(uRSC,1,z4); glUniform4fv(uRFill,1,f4); glUniform1i(uRGOn,0); glUniform4fv(uRGrad,1,z4); glUniform1i(uRN,1); glUniform1f(uRAlpha,op); glDrawArrays(GL_TRIANGLE_STRIP,0,4); }
     else if(a>0.001f){ glUseProgram(prog); glBindVertexArray(vao); glUniform4f(uRect,px,py,w,h); glUniform4f(uCUV,0,0,1,1); glUniform2f(uView,vw,vh); glUniform4f(uColor,r,g,b,a); glDrawArrays(GL_TRIANGLE_STRIP,0,4); }
     for(int i=0;i<wd->nitems;i++){ Tex*t=wd->kinds[i]=='M'?vid_get(wd->items[i]):tex_get(wd->items[i]); if(!t) continue;
         glUseProgram(tprog); glUniform1f(uTClipRad,0.f); glBindVertexArray(vao); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,t->tex); glUniform1i(uTSamp,0);
@@ -233,11 +246,16 @@ static void draw(Widget*wd,float ox,float oy,float ps,float po,int vw,int vh){
         int vflag2=(wd->kinds[i]=='M'&&wd->uv[i][0]<-1.5f);     int nocrop=(wd->kinds[i]=='M'&&wd->uv[i][0]<0.f&&!vflag2);     float bf=(wd->kinds[i]=='M'&&!nocrop&&t->h>0)?(float)t->band/t->h:0.f, bbf=(wd->kinds[i]=='M'&&!nocrop&&t->h>0)?(float)t->bandb/t->h:0.f; int hasb=(bf>0.f||bbf>0.f); int vscis=0; float rx=px, ry=py; if(wd->kinds[i]=='M'&&!nocrop&&t->w>0&&t->h>0){   float cw=(float)t->w, ch=(float)t->h*(1.f-bf-bbf); int fullw=(w>=0.9f*vw); float RX=fullw?0.f:px, RY=fullw?0.f:py, RW=fullw?(float)vw:w, RH=fullw?(float)vh:h; int fitw=fullw&&!vflag2; float s=fitw?(RW/cw):fmaxf(RW/cw,RH/ch); iw=cw*s; ih=ch*s; rx=RX+(RW-iw)*0.5f; ry=fitw?RY:(RY+(RH-ih)*0.5f);
 
           if(!fullw && g_dh>0){ float sx=(float)g_dw/vw, sy=(float)g_dh/vh; glEnable(GL_SCISSOR_TEST); glScissor((int)(px*sx),(int)(g_dh-(py+h)*sy),(int)(w*sx),(int)(h*sy)); vscis=1; } } glUniform4f(uTRect,rx,ry,iw,ih); if(wd->kinds[i]=='M') glUniform4f(uTUV,0.f,bf,1.f,1.f-bf-bbf);     else if(nocrop) glUniform4f(uTUV,0.f,0.f,1.f,1.f); else glUniform4f(uTUV,wd->uv[i][0],wd->uv[i][1],wd->uv[i][2],wd->uv[i][3]); glUniform2f(uTView,vw,vh); glUniform1f(uTAlpha,op*(wd->kinds[i]=='M'?wd->ia[i]:1.f)); glUniform2f(uTSize,iw,ih); glUniform1f(uTRad,wd->kinds[i]=='T'?0.f:wd->cr*sc); glUniform4f(uTQuad,rx,ry,iw,ih); glUniform4f(uTClip,px,py,w,h); glUniform1f(uTClipRad,(wd->kinds[i]=='M'&&wd->cr>0.f)?wd->cr*sc:0.f);     { float ff=0.f; if(wd->kinds[i]=='M'&&!nocrop&&ih>0.f){ int covers=(rx<=1.f && ry<=1.f && rx+iw>=(float)vw-1.f && ry+ih>=(float)vh-1.f); ff=(vscis||vflag2||covers)?0.f:(hasb?1.0f:0.6f);                 } if(wd->kinds[i]=='M'&&getenv("VIEWFADE")) ff=(float)atof(getenv("VIEWFADE")); glUniform1f(uTFade,ff); if(getenv("VIEWDBG")&&wd->kinds[i]=='M'){ static int dn=0; if((dn++%30)==0) fprintf(stderr,"[vdbg] %s py=%.1f ih=%.1f h=%.1f vh=%d band=%d bandb=%d nocrop=%d ff=%.3f op=%.2f\n",wd->items[i],(double)py,(double)ih,(double)h,vh,t->band,t->bandb,nocrop,(double)ff,(double)op); } } glDrawArrays(GL_TRIANGLE_STRIP,0,4); glUniform1f(uTFade,0.f); if(vscis) glDisable(GL_SCISSOR_TEST); }
-    if(wd->clip && g_dh>0){ float sx=(float)g_dw/vw, sy=(float)g_dh/vh; glEnable(GL_SCISSOR_TEST); glScissor((int)(px*sx),(int)(g_dh-(py+h)*sy),(int)(w*sx),(int)(h*sy)); }
+    int clipped=0, pc_on=0, pc[4]={0,0,0,0};
+    if(wd->clip && g_dh>0){ float sx=(float)g_dw/vw, sy=(float)g_dh/vh; int X=(int)(px*sx), Y=(int)(g_dh-(py+h)*sy), W_=(int)(w*sx), H_=(int)(h*sy);
+        pc_on=g_sc_on; memcpy(pc,g_sc,sizeof pc);
+        if(g_sc_on){ int x2=X+W_, y2=Y+H_, px2=g_sc[0]+g_sc[2], py2=g_sc[1]+g_sc[3]; if(g_sc[0]>X) X=g_sc[0]; if(g_sc[1]>Y) Y=g_sc[1]; if(px2<x2) x2=px2; if(py2<y2) y2=py2; W_=x2-X; H_=y2-Y; if(W_<0) W_=0; if(H_<0) H_=0; }
+        g_sc[0]=X; g_sc[1]=Y; g_sc[2]=W_; g_sc[3]=H_; g_sc_on=1; clipped=1; glEnable(GL_SCISSOR_TEST); glScissor(X,Y,W_,H_); }
     for(int i=0;i<wd->nchildren;i++) draw(wd->children[i], ox+wx, oy+wy, sc, op, vw, vh);
-    if(wd->clip) glDisable(GL_SCISSOR_TEST);
+    if(clipped){ if(pc_on){ g_sc_on=1; memcpy(g_sc,pc,sizeof pc); glScissor(pc[0],pc[1],pc[2],pc[3]); } else { g_sc_on=0; glDisable(GL_SCISSOR_TEST); } }
 }
 
+static Uint32 g_mouse_t=0; static int g_mouse_shown=1;
 static SDL_GameController* g_pads[8]; static int g_npads=0;
 static const char* g_held=NULL; static Uint32 g_held_t=0, g_held_next=0; static int g_axis_dir[2]={0,0};
 static void pad_emit(const char*nm,int down,int rep){ printf("KEY %s %d %d\n",nm,down,rep); fflush(stdout); }
@@ -306,10 +324,12 @@ int main(int argc,char**argv){
     if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_GAMECONTROLLER)!=0 && SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER)!=0 && SDL_Init(SDL_INIT_VIDEO)!=0){ fprintf(stderr,"SDL: %s\n",SDL_GetError()); return 1; }
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,3); SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,0);
+    ws_load();
     SDL_Window*win=SDL_CreateWindow("Netflix",
-        SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,W,H,SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
+        (ws_x>=0&&ws_y>=0)?ws_x:SDL_WINDOWPOS_CENTERED,(ws_x>=0&&ws_y>=0)?ws_y:SDL_WINDOWPOS_CENTERED,ws_w,ws_h,SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
     { const char*ib=getenv("NETFLIX_ICON_BMP"); if(ib){ SDL_Surface*is=SDL_LoadBMP(ib); if(is){ SDL_SetWindowIcon(win,is); SDL_FreeSurface(is); } } }
-    if(getenv("NETFLIX_FULLSCREEN")) SDL_SetWindowFullscreen(win,SDL_WINDOW_FULLSCREEN_DESKTOP);
+    if(getenv("NETFLIX_FULLSCREEN")||ws_mode==2) SDL_SetWindowFullscreen(win,SDL_WINDOW_FULLSCREEN_DESKTOP); else if(ws_mode==1) SDL_MaximizeWindow(win);
+    SDL_StartTextInput();
     SDL_GLContext ctx=SDL_GL_CreateContext(win); SDL_GL_SetSwapInterval(1); gl_init();
     printf("[viewer] lendo cena de: %s (hot-reload). ESC/fechar p/ sair.\n", scenefile);
     Widget*scene=NULL; int vw=1920,vh=1080; long long lastm=0;
@@ -324,10 +344,21 @@ int main(int argc,char**argv){
         g_frame++; g_uploads=0; g_anim_seen=0; g_fstart=SDL_GetPerformanceCounter();
         { struct timespec ts; clock_gettime(CLOCK_REALTIME,&ts); g_now_ms=ts.tv_sec*1000.0+ts.tv_nsec/1e6; }
         pad_tick();
-        SDL_Event e; while(SDL_PollEvent(&e)){ if(e.type==SDL_QUIT)running=0; pad_event(&e);
-            if(e.type==SDL_KEYDOWN&&e.key.keysym.sym==SDLK_F11&&!e.key.repeat){ SDL_SetWindowFullscreen(win,(SDL_GetWindowFlags(win)&SDL_WINDOW_FULLSCREEN_DESKTOP)?0:SDL_WINDOW_FULLSCREEN_DESKTOP); }
+        if(g_cursor_want!=g_cursor_cur){ static SDL_Cursor*ch=NULL,*ca=NULL; if(!ch) ch=SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND); if(!ca) ca=SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW); SDL_SetCursor(g_cursor_want?ch:ca); g_cursor_cur=g_cursor_want; }
+        if(g_mouse_shown && SDL_GetTicks()-g_mouse_t>3000){ SDL_ShowCursor(SDL_DISABLE); g_mouse_shown=0; }
+        SDL_Event e; while(SDL_PollEvent(&e)){ if(e.type==SDL_QUIT){ ws_track(win); running=0; } if(e.type==SDL_WINDOWEVENT && (e.window.event==SDL_WINDOWEVENT_MAXIMIZED||e.window.event==SDL_WINDOWEVENT_RESTORED||e.window.event==SDL_WINDOWEVENT_RESIZED||e.window.event==SDL_WINDOWEVENT_MOVED||e.window.event==SDL_WINDOWEVENT_SIZE_CHANGED)) ws_track(win); pad_event(&e);
+            if(e.type==SDL_TEXTINPUT){ const unsigned char*u=(const unsigned char*)e.text.text; while(*u){ unsigned int cp=0; int n=0; if(*u<0x80){cp=*u;n=1;} else if((*u&0xE0)==0xC0){cp=*u&0x1F;n=2;} else if((*u&0xF0)==0xE0){cp=*u&0x0F;n=3;} else {cp=*u&0x07;n=4;} for(int k=1;k<n&&u[k];k++) cp=(cp<<6)|(u[k]&0x3F); printf("TXT %u\n",cp); u+=n; } fflush(stdout); }
+            if(e.type==SDL_MOUSEMOTION||e.type==SDL_MOUSEBUTTONDOWN||e.type==SDL_MOUSEBUTTONUP){ int mw,mh; SDL_GetWindowSize(win,&mw,&mh); if(mw>0&&mh>0){
+                    int mx=e.type==SDL_MOUSEMOTION?e.motion.x:e.button.x, my=e.type==SDL_MOUSEMOTION?e.motion.y:e.button.y;
+                    Uint32 bs=SDL_GetMouseState(NULL,NULL); int bm=((bs&SDL_BUTTON_LMASK)?1:0)|((bs&SDL_BUTTON_RMASK)?2:0)|((bs&SDL_BUTTON_MMASK)?4:0);
+                    int btn=e.type==SDL_MOUSEMOTION?0:(e.button.button==SDL_BUTTON_LEFT?0:(e.button.button==SDL_BUTTON_MIDDLE?1:2));
+                    printf("MOUSE %s %.5f %.5f %d %d\n",e.type==SDL_MOUSEMOTION?"move":(e.type==SDL_MOUSEBUTTONDOWN?"press":"release"),(double)mx/mw,(double)my/mh,btn,bm); fflush(stdout);
+                    g_mouse_t=SDL_GetTicks(); if(!g_mouse_shown){ SDL_ShowCursor(SDL_ENABLE); g_mouse_shown=1; } } }
+            if(e.type==SDL_KEYDOWN&&g_mouse_shown){ SDL_ShowCursor(SDL_DISABLE); g_mouse_shown=0; }
+            if(e.type==SDL_MOUSEWHEEL&&(e.wheel.y!=0||e.wheel.x!=0)){ int mw,mh,mx,my; SDL_GetWindowSize(win,&mw,&mh); SDL_GetMouseState(&mx,&my); int dir; if(e.wheel.x!=0) dir=e.wheel.x>0?3:2; else if(SDL_GetModState()&KMOD_SHIFT) dir=e.wheel.y>0?2:3; else dir=e.wheel.y>0?0:1; printf("MOUSE wheel %.5f %.5f %d 0\n",mw>0?(double)mx/mw:0.0,mh>0?(double)my/mh:0.0,dir); fflush(stdout); g_mouse_t=SDL_GetTicks(); }
+            if(e.type==SDL_KEYDOWN&&e.key.keysym.sym==SDLK_F11&&!e.key.repeat){ SDL_SetWindowFullscreen(win,(SDL_GetWindowFlags(win)&SDL_WINDOW_FULLSCREEN_DESKTOP)?0:SDL_WINDOW_FULLSCREEN_DESKTOP); ws_track(win); }
             if(e.type==SDL_KEYDOWN||e.type==SDL_KEYUP){ const char*nm=NULL; switch(e.key.keysym.sym){ case SDLK_UP:nm="up";break; case SDLK_DOWN:nm="down";break; case SDLK_LEFT:nm="left";break; case SDLK_RIGHT:nm="right";break;
-                    case SDLK_RETURN:case SDLK_KP_ENTER:case SDLK_SPACE:nm="enter";break; case SDLK_BACKSPACE:case SDLK_ESCAPE:nm="back";break;  case SDLK_PAGEUP:nm="pageup";break; case SDLK_PAGEDOWN:nm="pagedown";break; default:break; }
+                    case SDLK_RETURN:case SDLK_KP_ENTER:nm="enter";break; case SDLK_BACKSPACE:nm="backspace";break; case SDLK_ESCAPE:nm="back";break;  case SDLK_PAGEUP:nm="pageup";break; case SDLK_PAGEDOWN:nm="pagedown";break; default:break; }
                 if(nm){ printf("KEY %s %d %d\n",nm,e.type==SDL_KEYDOWN,e.key.repeat); fflush(stdout); } } }
         struct stat st; if(stat(scenefile,&st)==0 && (st.st_mtim.tv_sec*1000000000LL+st.st_mtim.tv_nsec)!=lastm){ lastm=st.st_mtim.tv_sec*1000000000LL+st.st_mtim.tv_nsec;
             double pp0=vstat?SDL_GetPerformanceCounter()*1000.0/SDL_GetPerformanceFrequency():0; Widget*ns=parse_scene(scenefile,&vw,&vh); if(ns){ wfree(scene); scene=ns; } if(vstat){ vs_parse+=SDL_GetPerformanceCounter()*1000.0/SDL_GetPerformanceFrequency()-pp0; vs_np++; } }
@@ -345,5 +376,5 @@ int main(int argc,char**argv){
         SDL_GL_SwapWindow(win);
         if(vstat){ double nw=SDL_GetPerformanceCounter()*1000.0/SDL_GetPerformanceFrequency(); double ft=nw-vf0; vs_n++; if(g_anim_seen) vs_na++; if(ft>vs_max) vs_max=ft; if(ft>25){ vs_slow++; fprintf(stderr,"[viewstat-lento] total=%.0fms pre-draw(poll+parse)=%.0f draw=%.0f swap+resto=%.0f uploads=%d\n",ft,vf1-vf0,vf2-vf1,nw-vf2,g_uploads); } if(vs_t0==0) vs_t0=nw; if(nw-vs_t0>2000){ fprintf(stderr,"[viewstat] fps=%.1f frame_max=%.0fms lentos(>25ms)=%d cenas/s=%.1f anim_quadros/s=%.1f parse_ms_medio=%.2f\n", vs_n*1000.0/(nw-vs_t0), vs_max, vs_slow, vs_np*1000.0/(nw-vs_t0), vs_na*1000.0/(nw-vs_t0), vs_np?vs_parse/vs_np:0); vs_t0=nw; vs_n=0; vs_na=0; vs_max=0; vs_slow=0; vs_np=0; vs_parse=0; } }
     }
-    SDL_GL_DeleteContext(ctx); SDL_DestroyWindow(win); SDL_Quit(); return 0;
+    ws_track(win); SDL_GL_DeleteContext(ctx); SDL_DestroyWindow(win); SDL_Quit(); return 0;
 }

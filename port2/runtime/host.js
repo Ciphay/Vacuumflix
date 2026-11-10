@@ -62,6 +62,7 @@ function loadChunk(fname, url) {
   code = code.split('drawOrder:null!=h?h:d&&J?1:void 0,entered:Y,').join('drawOrder:null!=h?h:d&&J?1:void 0,layoutStretch:A,entered:Y,');
   if (process.env.BTNLOG) code = code.split('function F(e){var t=e.accessibilityRole,a=void 0===t?"button":t,').join('function F(e){globalThis.__mark("[btnF]",e.name,String(e.layoutStretch),Object.keys(e).join(","));var t=e.accessibilityRole,a=void 0===t?"button":t,');
   if (process.env.SKIPBACKUI !== '1') code = code.split('t.isSkipBackBufferFull=function(){return!0}').join('t.isSkipBackBufferFull=function(){return!1}');
+  if (process.env.DRAGTRICK !== '0') code = code.split('this.setState({dragDifferenceX:e.diffX,dragging:!0,dragPercentage:n}),t(n)}e.stopPropagation()}function h(e)').join('this.setState({dragDifferenceX:e.diffX,dragging:!0,dragPercentage:n}),t(n),function(s){var pr=s.props;if(pr.setTargetTime&&pr.onShowTrickPlay){var nw=Date.now();if(!s.__tpT||nw-s.__tpT>120){s.__tpT=nw;pr.setTargetTime(s._getDragTargetTime(e));pr.onShowTrickPlay()}}}(this)}e.stopPropagation()}function h(e)');
   code = code.split('Z=J.hasFullScreenDelay,ee=J.initialListItem').join('Z=J.hasFullScreenDelay!==false,ee=J.initialListItem');
   code = code.split('f=(0,(s||(s=n(65435))).useGetListConfig)().initialFullScreenDelayInSeconds,').join('f=((0,(s||(s=n(65435))).useGetListConfig)().initialFullScreenDelayInSeconds)||5,');
   code = code.split('d=e.gateStackRequest,s=e.interstitialDGSRequest,').join('d=e.gateStackRequest||[],s=e.interstitialDGSRequest,');
@@ -664,6 +665,9 @@ if (label==='aui.js' && process.env.POLLDBG) { const R=(a,b)=>{ const ok=code.in
   R('if(null!=r&&r.setClcsState){ne.next=33\nbreak}', 'if(globalThis.__mark("[poll] setClcsState?",!!(null!=r&&r.setClcsState)),null!=r&&r.setClcsState){ne.next=33\nbreak}'); }
 if (label==='aui.js' && process.env.FORCEREPL) code = code.split('l&&Oe((0,(B||(B=n(17963))).getNavigateForwardAction)({replaceCurrentScreen:!!o,screenData:a}))').join('l&&Oe((0,(B||(B=n(17963))).getNavigateForwardAction)({replaceCurrentScreen:true,screenData:a}))');
 if (label==='aui.js' && process.env.BACKLOCAL !== '0') code = code.split('o.next=3,(0,y.default)().awrap(N((void 0===a?a=r(n(98221)):a).default.historyPop()))').join('o.next=3,(0,y.default)().awrap(N([(void 0===a?a=r(n(98221)):a).default.historyInsert({clViewName:null,pathname:"/welcomeContentLanding"},0),(void 0===a?a=r(n(98221)):a).default.historyPop()]))');
+code = code.split('t.getActiveElement=function(){return l},t.getActiveFocusableRoot=function(){return d}').join('t.getActiveElement=function(){return l},globalThis.__activePathFn=function(){var p=(0,s.getFocusablePath)(l);if(l&&!/^\\/AppMenu/.test(p))globalThis.__lastContentEl=l;return p},t.getActiveFocusableRoot=function(){return d}');
+code = code.split('},t.triggerMouseFocus=function(e){var t,n=e.target').join('},globalThis.__focusWidget=function(w){var s=(0,o.getNearestFocusable)(w);for(;s&&(s.widget.ignorePointer||s.widget.disabled);)s=(0,o.getNearestFocusable)(s.widget.parent);if(s){var u=s.widget,l=(0,i.getFocusablePath)(u);(0,r.focusRequest)(l,u,{type:"mouseover",target:w,timeStamp:Date.now(),nativeEvent:{time:Date.now()}},"mouse");return l}return null},globalThis.__focusLastBlurred=function(){var w=globalThis.__lastContentEl&&globalThis.__lastContentEl.widget||(0,o.getLastBlurred)(),s=(0,o.getNearestFocusable)(w);for(;s&&(s.widget.ignorePointer||s.widget.disabled);)s=(0,o.getNearestFocusable)(s.widget.parent);if(s){var u=s.widget,l=(0,i.getFocusablePath)(u);(0,r.focusRequest)(l,u,{type:"mousehide",target:w,timeStamp:Date.now(),nativeEvent:{time:Date.now()}},"mouse");return l}return null},t.triggerMouseFocus=function(e){var t,n=e.target');
+if (process.env.MENUGUARD !== '0') code = code.split('t.focusRequest=function(e,t,r,i){var s=').join('t.focusRequest=function(e,t,r,i){if(!globalThis.__menuAllowed&&/^\\/AppMenu/.test(String(e))&&(i==="mouse"||Date.now()<(globalThis.__menuBlockUntil||0)))return;var s=');
 code = code.split('null!=(e=globalThis.Halti)&&e.isInitialized()?o.AnimationSupport.Halti:').join('false?o.AnimationSupport.Halti:');
 if (process.env.SPATLOG) code = code.split('var n=e.target,r=m(n,t)\nif(!r)return void(e.altKey').join('var n=e.target,r=m(n,t);globalThis.__mark("[spatial]",e.uiEvent,n&&n.name,n&&n.focusKey,"->",r&&r.widget&&r.widget.name,r&&r.widget&&r.widget.focusKey);\nif(!r)return void(e.altKey');
 if (process.env.SPATLOG) { code = code.split('t.noFocusableInDirection=function(e,t,r,i){').join('t.noFocusableInDirection=function(e,t,r,i){globalThis.__mark("[nofocus]",t,r&&r.name,r&&r.focusKey);'); code = code.split('t.focusRequest=function(e,t,r,i){').join('t.focusRequest=function(e,t,r,i){globalThis.__mark("[focusReq]",t&&t.focusKey,i);'); }
@@ -993,6 +997,7 @@ function intrinsic(w, availW){
   } else if (kids.length) {
     let x0=0, y0=0; kids.forEach(k=>{ const s=sizeOf(k), kp=lp(k); const kx=num(kp.x,0), ky=num(kp.y,0); iw=Math.max(iw,kx+s.w); ih=Math.max(ih,ky+s.h); x0=Math.min(x0,kx); y0=Math.min(y0,ky); });
     if (!NOR.includes('bbox')) { iw-=x0; ih-=y0; }
+    if (kids.length===1 && (p.name||'')==='Space' && w.__parent && ((w.__parent.__p||{}).name||'')==='LeftColumn' && !process.env.NOSEARCHFIX) { const ky0=num(lp(kids[0]).y,0); if (ky0<0) { const ky=animVal(kids[0],'y',ky0); ih=Math.max(0, Math.min(0,ky)+sizeOf(kids[0]).h+Math.max(0,ky)); } }
   }
   if (LAYOUT_LEGACY) { iw=Math.max(iw+ (txt?pd.l+pd.r:0), num(rp(w,'minWidth'),0)); ih=Math.max(ih, num(rp(w,'minHeight'),0)); return { w:iw, h:ih }; }
   if (!NOR.includes('pad') && !(kids.length && hasLayout(w))) { iw+=pd.l+pd.r; ih+=pd.t+pd.b; } else if (NOR.includes('pad') && txt) iw+=pd.l+pd.r;
@@ -1147,7 +1152,7 @@ function titlePlaymode(){ try { const root = nrdpReal.gibbon.scene && nrdpReal.g
   const f = (n,d)=>{ if (!vis(n)) return false; if ((n.__p||{}).name==='playmode') return true; if (d>=5) return false; for (const c of n.children||[]) if (f(c,d+1)) return true; return false; };
   return f(root,0); } catch { return false; } }
 function serializeScene(){
-  __serStamp++; const __pm = titlePlaymode();
+  __serStamp++; globalThis.__hitsNew = []; const __pm = titlePlaymode();
   if (__E.ROUTEDBG) { try { const root=nrdpReal.gibbon.scene&&nrdpReal.gibbon.scene._widget; const app=(function f(n,d){ if (!n) return null; if ((n.__p||{}).name==='app') return n; for (const k of n.children||[]) { const r=f(k,d+1); if (r) return r; } return null; })(root,0);
       if (app) { const sig=(app.children||[]).map(k=>'#'+k.id+':'+((k.__p||{}).name||'')+':'+((k.__p||{}).visible===false?'H':'V')+':'+(((k.__L&&k.__L.x)||(k.__p||{}).x||0)|0)).join(' | '); if (sig!==globalThis.__rsig) { globalThis.__rsig=sig; console.log('[route] t='+process.uptime().toFixed(1)+' '+sig.slice(0,400)); } } } catch(e){} }
   if (globalThis.__lensLast && Date.now()-(globalThis.__lensSeen||0) > 400) { globalThis.__lensLast=null; globalThis.__lensRec=null; }
@@ -1233,7 +1238,13 @@ if (root) (function walk(w,depth,card,btn){
         if (ah) { __he = hh - (__ahv-__bh); for (const an of ah) (__N=__N||[]).push(f(4,__bh,an)); }
         if (as) { __sce = num(p.scale,1); for (const an of as) (__N=__N||[]).push(f(5,__sce,an)); }
       }
-      lines.push(`W ${depth} ${__xe} ${__ye} ${__we} ${__he} ${((roundBtn||roundTag||roundPin)?0:col).toString(16).padStart(8,'0')} ${__ope} ${__sce}`);
+      const __bgs = (()=>{ try { const u = (p.backgroundImage && p.backgroundImage.url) || (p.image && p.image.url); return typeof u === 'object' ? JSON.stringify(u) : String(u || ''); } catch { return ''; } })();
+      const __isPtrImg = /pointeraffordance/i.test(__bgs);
+      if (__E.PTRDBG && __isPtrImg && Date.now() - (globalThis.__pdT || 0) > 1500) { globalThis.__pdT = Date.now(); const ch = []; for (let n = w, d = 0; n && d < 6; n = n.__parent, d++) ch.push((n.__p || {}).name || '#' + n.id); console.log('[ptrimg]', ch.join(' < '), __bgs.slice(0, 90)); }
+      let __vert = PTR_NAMES.test(p.name||'');
+      const __hidePtr = !__E.SHOWPTR && __vert;
+      lines.push(`W ${depth} ${__xe} ${__ye} ${__we} ${__he} ${((roundBtn||roundTag||roundPin)?0:col).toString(16).padStart(8,'0')} ${__hidePtr?0:__ope} ${__sce}`);
+      if (__we>0 && __he>0 && (__ope>0.01 || __hidePtr)) { const PAh=ABS[ABS.length-1]; (globalThis.__hitsNew||(globalThis.__hitsNew=[])).push({ w, x:PAh.x+__xe, y:PAh.y+__ye, ww:__we, hh:__he }); }
       if (__N) for (const l of __N) lines.push(l);
       if (w.player && typeof w.player.name==='string') { const PA1=ABS[ABS.length-1]; __vidRect={x:PA1.x+x,y:PA1.y+y,w:ww,h:hh}; const mm=/(\d+)$/.exec(w.player.name); if (mm) { __vidRect.file='/dev/shm/gibbon_video_'+mm[1]+'.rgba'; { videoFade(); const al=__vfOn?Math.round(100*videoAlpha()):(videoFading()?Math.round(100*(1-(Date.now()-__vfOff)/700)):0); if (al>0) { if (__E.VIDLOG && Date.now()-(globalThis.__vl||0)>700) { globalThis.__vl=Date.now(); console.log('[vidrect]', JSON.stringify({x:Math.round(__vidRect.x),y:Math.round(__vidRect.y),w:Math.round(__vidRect.w),h:Math.round(__vidRect.h)}), 'ANC='+ANC.join('>').slice(-90), 'name='+(p.name||''), 'card='+JSON.stringify(card||null), 'ww,hh='+Math.round(ww)+','+Math.round(hh), 'ABS='+JSON.stringify(PA1)); } lines.push('M '+(__vfOn?__vidRect.file:__vidRect.file+'.last')+' '+((__pm&&__vfOn)?100:al)+((__pm||(globalThis.__vidProt&&globalThis.__vidProt[+mm[1]]))?' -1':'')); lines.push('K '+((!__pm && !(globalThis.__vidProt&&globalThis.__vidProt[+mm[1]]) && ((card && ww>=0.9*card.w && hh>=0.9*card.h) ? card.r*sceneScale() : (ANC.includes('WelcomeContentLandingHorizontalCardsViewContainer') && ww<0.9*1920) ? 16*sceneScale() : 0)) || 0)); } } } }
       if (roundBtn) lines.push(`R ${Math.min(ww,hh)/2} 0 00000000 ${col.toString(16).padStart(8,'0')} 0 0 0 0 1`);
@@ -1256,12 +1267,13 @@ if (root) (function walk(w,depth,card,btn){
         const rad=fill&&fill.type==='radial'; const b=rad?(fill.center||[0.5,0.5]):(fill&&fill.beginPosition||[0,0]), e2=rad?(fill.radius||[1,1]):(fill&&fill.endPosition||[0,1]);
         if (__E.RINGDBG) console.log('[ring ep]', p.name, 'anc='+ANC.slice(-4).join('>'), Math.round(ww)+'x'+Math.round(hh), 'rad='+ep.radius, 'sw='+ep.strokeWidth, 'browse='+ringBrowse, 'av='+avRing);
         const stdRing = !roundBtn2 && num(ep.strokeWidth,0)>=3 && !ANC.some(n=>/landing/i.test(n));
-        lines.push(`R ${stdRing ? 0 : ringBrowse ? 0 : roundBtn2 ? Math.min(ww,hh)/2 : (avRing?0:num(ep.radius,0)*sceneScale())} ${stdRing ? 3.5 : ringBrowse ? 5 : Math.max(0,num(ep.strokeWidth,0)*sceneScale()-((!roundBtn2&&ANC.includes('profiles-list'))?2.5:0))} ${hex(ep.strokeColor)} ${fc} ${g} ${b[0]} ${b[1]} ${e2[0]} ${e2[1]}${gl}`);
+        lines.push(`R ${stdRing ? 0 : ringBrowse ? 0 : roundBtn2 ? Math.min(ww,hh)/2 : (avRing?0:num(ep.radius,0)*sceneScale())} ${stdRing ? 4.5 : ringBrowse ? 5 : Math.max(0,num(ep.strokeWidth,0)*sceneScale()-((!roundBtn2&&ANC.includes('profiles-list'))?2.5:0))} ${hex(ep.strokeColor)} ${fc} ${g} ${b[0]} ${b[1]} ${e2[0]} ${e2[1]}${gl}`);
+        if (!__E.NOINSH && (stdRing || ringBrowse)) lines.push(`H ${8*sceneScale()} 0.4`);
         { const isRed = hex(ep.fill)==='e50914ff' || fc==='e50914ff'; const pill = num(ep.radius,0)*sceneScale()*2 >= hh-1; if (pill && hh>=80) lines.push(`J ${(hh-(+__E.BTN_H||64))/2}`); } }
       if (__E.LOGODBG) { const io=p.image||p.backgroundImage; const u=io&&io.url; const e=u&&imgCache.get(typeof u==='object'?u.url:u); if (e&&e.state==='ready'&&e.w>=150&&e.w<=700&&e.h<=400) { const par=w.__parent; console.log('[logodbg]', JSON.stringify({io:Object.assign({},io,{url:String(io.url).slice(-30)}),wk:Object.keys(w).filter(k=>!/^(__|children|id|_)/.test(k)).slice(0,30),name:p.name,img:[e.w,e.h],L:w.__L,pw:p.width,ph:p.height,x:p.x,y:p.y,sr:io.sourceRect,par:par&&{lay:par.layout,pw:par.__p&&par.__p.width,ph:par.__p&&par.__p.height,pad:par.padding,L:par.__L},ls:w.layoutStretch,minW:w.minWidth,minH:w.minHeight,maxW:w.maxWidth,maxH:w.maxHeight})); } }
       let dynRing=null; { const u0=p.image&&p.image.url; const us=typeof u0==='object'?(u0&&u0.url):u0; if (typeof us==='string' && /dynimoImage/.test(us) && /recipeType=StyledRectangle/.test(us)) { try{ const dp=JSON.parse(decodeURIComponent((/dynimoParams=([^&]+)/.exec(us)||[])[1]||'{}')); dynRing=JSON.parse(dp.effectParams||'{}'); }catch{} } }
       if (dynRing && __E.RINGDBG) console.log('[ring dyn]', p.name, 'anc='+ANC.slice(-4).join('>'), Math.round(ww)+'x'+Math.round(hh), 'rad='+dynRing.radius, 'sw='+dynRing.strokeWidth, 'browse='+ringBrowse, 'av='+avRing);
-      if (dynRing) { const hx=c=>packColor(c).toString(16).padStart(8,'0'); const stdD = num(dynRing.strokeWidth,0)>=3 && !ANC.some(n=>/landing/i.test(n)); const rd=(stdD||ringBrowse)?0:(avRing?0:Math.max(num(dynRing.radius,0), 8)*sceneScale()); lines.push(`R ${rd} ${stdD?3.5:ringBrowse?5:Math.max(0,num(dynRing.strokeWidth,0)*sceneScale()-(ANC.includes('profiles-list')?2.5:0))} ${hx(dynRing.strokeColor)} ${hx(dynRing.fill)} 0 0 0 0 1`); }
+      if (dynRing) { const hx=c=>packColor(c).toString(16).padStart(8,'0'); const stdD = num(dynRing.strokeWidth,0)>=3 && !ANC.some(n=>/landing/i.test(n)); const rd=(stdD||ringBrowse)?0:(avRing?0:Math.max(num(dynRing.radius,0), 8)*sceneScale()); lines.push(`R ${rd} ${stdD?4.5:ringBrowse?5:Math.max(0,num(dynRing.strokeWidth,0)*sceneScale()-(ANC.includes('profiles-list')?2.5:0))} ${hx(dynRing.strokeColor)} ${hx(dynRing.fill)} 0 0 0 0 1`); if (!__E.NOINSH && (stdD || ringBrowse)) lines.push(`H ${8*sceneScale()} 0.4`); }
       const lensOnlyBg = p.name==='HorizontalCardLensImage' && p.backgroundImage && p.image && (()=>{ const a=p.backgroundImage.url, b=p.image.url; return (typeof a==='object'?a&&a.url:a)===(typeof b==='object'?b&&b.url:b); })();
       for (const [obj, bg, wrapFade] of dynRing ? [] : (lensOnlyBg ? (lensPrev ? [[lensPrev,1],[p.backgroundImage,1,true]] : [[p.backgroundImage,1,lensImgOp!==null&&lensImgOp<0.999]]) : [[p.backgroundImage,1],[p.image,0]])) {
         if (wrapFade) { let kline=null; for (let q=lines.length-1;q>=0;q--) { if (lines[q].startsWith('W ')) break; if (lines[q].startsWith('K ')) { kline=lines[q]; break; } }
@@ -1289,7 +1301,9 @@ if (root) (function walk(w,depth,card,btn){
     } catch(e){ const m=String(e&&e.message); if(__E.SCENELOG) console.log('[serialize THROW]', m); else { globalThis.__serErr=globalThis.__serErr||new Set(); if(!globalThis.__serErr.has(m)){ globalThis.__serErr.add(m); console.log('[serialize THROW] (1a vez)', m); } } }
   })(root,0);
   if (!splashReadyLatch) { let n=0; for (const l of lines) if (l.charCodeAt(0)===73 || l.charCodeAt(0)===84) n++; if (n>=(/localcontrol\.netflix\.com\/js\/error\.js/.test(String(nrdpReal.gibbon.__loc||'')) ? 3 : 10)) splashReadyLatch=true; }
+  lines.splice(1,0,'CURSOR '+(globalThis.__cursorHand?1:0));
   lines.splice(1,0,'SPLASH '+((splashReadyLatch||__E.NOSPLASH)?1:0)+' '+process.pid);
+  globalThis.__hits = globalThis.__hitsNew;
   return lines.join('\n')+'\n';
 }
 let splashReadyLatch=false;
@@ -1298,12 +1312,120 @@ const SCENE_FILE = __E.SCENE_FILE || path.join(require('os').tmpdir(), 'gibbon_s
 const KEYMAP = { up:{code:38,ui:'key.up'}, down:{code:40,ui:'key.down'}, left:{code:37,ui:'key.left'}, right:{code:39,ui:'key.right'},
   enter:{code:13,ui:'key.enter'}, back:{code:8,ui:'key.back'}, pageup:{code:33,ui:'key.page_up'}, pagedown:{code:34,ui:'key.page_down'},
   pause:{code:19,ui:'key.pause'}, search:{code:84,ui:'key.search'}, l1:{code:102,ui:'key.l1'}, r1:{code:103,ui:'key.r1'}, start:{code:108,ui:'key.start'} };
-function dispatchKey(name, down, repeat){
+function keyboardVisible(){ return (globalThis.__hits || []).some(x => ((x.w.__p || {}).name) === 'keyboard'); }
+function dispatchHot(code, text, down, repeat){
+  globalThis.__staticN = 0; if (down) hideMouse();
+  const ev = { type:'key', time: Date.now(), data:{ code, type: down ? 'press' : 'release', uiEvent: undefined, repeat: !!repeat, modifiers:[], text: down ? text : '' } };
+  if (__E.KEYLOG) console.log('[key-texto]', code, JSON.stringify(text), down ? 'down' : 'up');
+  for (const f of ((nrdpReal.gibbon.__evl||{}).key||[]).slice()) { try { f(ev); } catch(e){ console.log('[key listener THROW]', e&&e.stack||e); } }
+}
+function dispatchText(cp){
+  const ch = String.fromCodePoint(cp), up = ch.toUpperCase();
+  const code = ch.length === 1 && up.length === 1 ? up.charCodeAt(0) : cp;
+  if (cp === 32 && !keyboardVisible()) { keyTap('enter'); return; }
+  dispatchHot(code, ch, true, false); setTimeout(() => dispatchHot(code, ch, false, false), 20);
+}
+function dispatchKey(name, down, repeat, keepMouse){
+  if (name === 'backspace') { if (keyboardVisible()) { dispatchHot(8, '', down, repeat); return; } name = 'back'; }
   globalThis.__staticN = 0;
   const k = KEYMAP[name]; if (!k) return;
+  if (down && !keepMouse && __E.MOUSEHIDEKEY !== '0') hideMouse();
   const ev = { type:'key', time: Date.now(), data:{ code:k.code, type: down ? 'press' : 'release', uiEvent:k.ui, repeat: !!repeat, modifiers:[], text:'' } };
   if (__E.KEYLOG) console.log('[key]', name, down?'down':'up');
   for (const f of ((nrdpReal.gibbon.__evl||{}).key||[]).slice()) { try { f(ev); } catch(e){ console.log('[key listener THROW]', e&&e.stack||e); } }
+}
+let __press = null; let __mouseLast = 0, __mouseVisible = false, __mouseButtons = 0;
+function dispatchMouse(kind, nx, ny, button, buttons){
+  globalThis.__staticN = 0;
+  if (kind === 'wheel') { wheelScroll(button, nx, ny); return; }
+  const sc = nrdpReal.gibbon.scene, vw = sc.width || 1920, vh = sc.height || 1080, k = sceneScale();
+  const now = Date.now();
+  if (kind === 'move' && now - __mouseLast < 20) return;
+  __mouseLast = now;
+  const px = nx * vw, py = ny * vh;
+  let widgets = []; const hits = globalThis.__hits || [];
+  for (let i = hits.length - 1; i >= 0; i--) { const h = hits[i]; if (px >= h.x && px <= h.x + h.ww && py >= h.y && py <= h.y + h.hh) widgets.push({ id: h.w.id, widget: h.w, x: (px - h.x) / k, y: (py - h.y) / k, ww: h.ww, hh: h.hh }); }
+  if (!sandbox.__menuAllowed && px / k > 110) widgets = widgets.filter(x => !inMenuTree(x.widget));
+  if (__E.MOUSELOG === '3' && kind === 'move' && now - (globalThis.__dbg3 || 0) > 700) { globalThis.__dbg3 = now; console.log('[mouse3]', widgets.slice(0, 16).map(x => { const h = hits.find(q => q.w === x.widget) || {}; return ((x.widget.__p || {}).name || '#' + x.widget.id) + '@' + Math.round((h.ww || 0) / k) + 'x' + Math.round((h.hh || 0) / k) + (x.widget.focusKey ? '[f]' : ''); }).join(' > ')); }
+  { let hand = false; let n = 0;
+    for (const x of widgets) { if (n++ >= 8) break; const w = x.widget; if (w.ignorePointer === true) continue;
+      if (w.draggable || ((w.__ev || {}).click || []).length > 0 || (w.focusKey && x.ww < 1500 && x.hh < 700)) { hand = true; break; } }
+    if (!sandbox.__menuAllowed && px / k > 110 && widgets.length === 0) hand = false;
+    if (hand !== !!globalThis.__cursorHand) { globalThis.__cursorHand = hand; globalThis.__staticN = 0; } }
+  const __over = widgets.some(x => menuName((x.widget.__p || {}).name));
+  if (__E.MOUSELOG === '2' && __over && kind === 'move') console.log('[mouse] sobre-menu aberto=' + menuOpen(), 'foco=' + focusPath(), widgets.map(x => (x.widget.__p || {}).name).join(','));
+  if (kind === 'move' && !sandbox.__menuAllowed && __over) return;
+  if (kind === 'press' && __over && !sandbox.__menuAllowed) { setMenuAllowed(true); const mv = { type:'mouse', time: now, data:{ type:'mouseMove', global:{ x: nx * 1280, y: ny * 720 }, button: 0, buttons: 0, widgets, visible: true } }; for (const f of ((nrdpReal.gibbon.__evl||{}).mouse||[]).slice()) { try { f(mv); } catch(e){} } }
+  if (kind === 'press') { __press = { x: nx, y: ny, scrub: widgets.some(x => /^scrubhead-(knub|hitbox)$/.test((x.widget.__p || {}).name || '')), clickable: widgets.slice(0, 8).some(x => x.widget.focusKey || ((x.widget.__ev || {}).click || []).length > 0 || x.widget.draggable) };
+    if (__E.MOUSELOG) console.log('[mouse-clique]', 'interativo=' + __press.clickable, widgets.slice(0, 8).map(x => ((x.widget.__p || {}).name || '#' + x.id) + (x.widget.focusKey ? '[f]' : '') + (((x.widget.__ev || {}).click || []).length ? '[c]' : '')).join(' > ')); }
+  if (kind === 'release' && __press) {
+    const pr = __press; __press = null;
+    if (pr.scrub) { setTimeout(() => keyTap('enter'), 250); }
+  }
+  const type = kind === 'press' ? 'mousePress' : kind === 'release' ? 'mouseRelease' : 'mouseMove';
+  const ev = { type:'mouse', time: now, data:{ type, global:{ x: nx * vw, y: ny * vh }, button: button, buttons: buttons, widgets, visible: true } };
+  __mouseVisible = true;
+  if (__E.MOUSELOG && kind === 'press') console.log('[mouse-props]', widgets.slice(0, 6).map(x => ((x.widget.__p || {}).name || '#' + x.id) + '{ig=' + x.widget.ignorePointer + ',dr=' + x.widget.draggable + ',bl=' + x.widget.blockPointer + '}').join(' > '));
+  if (__E.MOUSELOG) console.log('[mouse]', type, Math.round(nx*1280), Math.round(ny*720), 'widgets=' + widgets.length, widgets.slice(0,3).map(x => ((x.widget.__p||{}).name||'#'+x.id)).join(','));
+  for (const f of ((nrdpReal.gibbon.__evl||{}).mouse||[]).slice()) { try { f(ev); } catch(e){ console.log('[mouse listener THROW]', e&&e.stack||e); } }
+}
+function focusPath(){ try { return (sandbox.__activePathFn && sandbox.__activePathFn()) || ''; } catch { return ''; } }
+setInterval(() => { try { sandbox.__activePathFn && sandbox.__activePathFn(); } catch {} }, 120).unref();
+let __menuSeen = false, __menuAllowedAt = 0;
+function setMenuAllowed(v){ try { sandbox.__menuAllowed = v; } catch {} __menuAllowedAt = Date.now(); __menuSeen = false; if (__E.MOUSELOG) console.log('[mouse] menu', v ? 'LIBERADO (clique)' : 'bloqueado'); }
+setInterval(() => { try {
+  if (!sandbox.__menuAllowed) { if (Date.now() < (sandbox.__menuBlockUntil || 0) && /^\/AppMenu/.test(focusPath())) restoreContentFocus(); return; }
+  const inM = /^\/AppMenu/.test(focusPath());
+  if (inM) __menuSeen = true; else if (__menuSeen || Date.now() - __menuAllowedAt > 1500) setMenuAllowed(false);
+} catch {} }, 150).unref();
+function restoreContentFocus(){ try { const r = sandbox.__focusLastBlurred && sandbox.__focusLastBlurred(); if (__E.MOUSELOG) console.log('[mouse] foco devolvido ao conteudo:', r); return r; } catch (e) { console.log('[mouse] restoreContentFocus ERRO', e && e.message); return null; } }
+function menuOpen(){ return !!findHit('app-menu-overlay'); }
+function inMenuTree(w){ for (let n = w, d = 0; n && d < 40; n = n.__parent, d++) if (menuName((n.__p || {}).name)) return true; return false; }
+function menuName(n){ return n === 'app.menu-pointer' || /^app-menu/.test(n || ''); }
+const PTR_NAMES = /^(pointerUp|pointerDown|pointer-affordance-up|pointer-affordance-down)$/;
+const PTR_DIR = [['pointerUp'], ['pointerDown'], [], []];
+function findDir(dir){ for (const n of PTR_DIR[dir]) { const h = findHit(n); if (h) return { h, name: n }; } return null; }
+function findHit(name){ const hits = globalThis.__hits || []; for (let i = hits.length - 1; i >= 0; i--) if (((hits[i].w.__p || {}).name) === name) return hits[i]; return null; }
+function clickHit(h){
+  const k = sceneScale(), sc = nrdpReal.gibbon.scene, vw = sc.width || 1920, vh = sc.height || 1080;
+  const cx = h.x + h.ww / 2, cy = h.y + h.hh / 2, widgets = [{ id: h.w.id, widget: h.w, x: h.ww / 2 / k, y: h.hh / 2 / k }];
+  const send = (type, buttons) => { const ev = { type:'mouse', time: Date.now(), data:{ type, global:{ x: cx / vw * 1280, y: cy / vh * 720 }, button: 0, buttons, widgets, visible: true } }; for (const f of ((nrdpReal.gibbon.__evl||{}).mouse||[]).slice()) { try { f(ev); } catch(e){ console.log('[mouse listener THROW]', e&&e.stack||e); } } };
+  __mouseVisible = true; send('mousePress', 1); setTimeout(() => send('mouseRelease', 0), 40);
+}
+function keyTap(name){ dispatchKey(name, true, false, true); setTimeout(() => dispatchKey(name, false, false, true), 30); }
+function rowStep(down, nx, ny){
+  const sc = nrdpReal.gibbon.scene, vw = sc.width || 1920, vh = sc.height || 1080, px = nx * vw, py = ny * vh;
+  const seen = new Set(), cards = [];
+  for (const h of (globalThis.__hits || [])) { const par = h.w.__parent; if (par && (par.__p || {}).name === 'collection' && par.__parent && (par.__parent.__p || {}).name === 'collection-wrapper' && /^\d+$/.test((h.w.__p || {}).name || '') && !seen.has(h.w)) { seen.add(h.w); cards.push(h); } }
+  const cur = cards.slice().reverse().find(h => px >= h.x && px <= h.x + h.ww && py >= h.y && py <= h.y + h.hh);
+  if (!cur) return false;
+  const others = cards.filter(h => down ? h.y > cur.y + 40 : h.y < cur.y - 40);
+  if (!others.length) return false;
+  const rowY = others.reduce((a, h) => down ? Math.min(a, h.y) : Math.max(a, h.y), down ? 1e9 : -1e9);
+  const row = others.filter(h => Math.abs(h.y - rowY) < 30);
+  const dist = h => px < h.x ? h.x - px : px > h.x + h.ww ? px - h.x - h.ww : 0;
+  const tgt = row.reduce((a, h) => (!a || dist(h) < dist(a)) ? h : a, null);
+  if (!tgt) return false;
+  let r = null; try { r = sandbox.__focusWidget && sandbox.__focusWidget(tgt.w); } catch (e) { r = 'EXC ' + (e && e.message); }
+  if (__E.MOUSELOG) console.log('[mouse] passo de fileira', down ? 'baixo' : 'cima', 'card=' + (tgt.w.__p || {}).name, '->', r);
+  return !!r && !/^(NOFOCUSABLE|EXC)/.test(String(r));
+}
+function wheelScroll(dir, nx, ny){
+  if (dir > 1) return;
+  const down = dir === 1;
+  try { sandbox.__menuBlockUntil = Date.now() + 700; } catch {}
+  const fd = findDir(dir), h = fd && fd.h, name = fd ? fd.name : PTR_DIR[dir][0];
+  const apath = focusPath();
+  const inMenu = /^\/AppMenu/.test(apath) && !menuOpen();
+  if (__E.MOUSELOG) console.log('[mouse] roda', ['cima','baixo','esquerda','direita'][dir], 'alvo=' + !!h, 'foco=' + JSON.stringify(apath), 'menuAberto=' + menuOpen(), 'overlay=' + JSON.stringify(((findHit('app-menu-overlay')||{}).w||{}).__p ? { op: findHit('app-menu-overlay').ww + 'x' + findHit('app-menu-overlay').hh } : null));
+  if (inMenu) { restoreContentFocus(); return; }
+  if (h && /^\/browse\//.test(apath)) { clickHit(h);  setTimeout(() => { if (/^\/AppMenu/.test(focusPath()) && !menuOpen()) { if (__E.MOUSELOG) console.log('[mouse] foco no menu fechado: voltando ao conteudo'); restoreContentFocus(); } }, 200); return; }
+  if (!__mouseVisible) { dispatchMouse('move', nx, ny, 0, 0); setTimeout(() => { const f2 = findDir(dir); if (f2 && /^\/browse\//.test(focusPath())) clickHit(f2.h); }, 150); }
+}
+function hideMouse(){
+  if (!__mouseVisible) return; __mouseVisible = false;
+  const ev = { type:'mouse', time: Date.now(), data:{ type:'mouseChange', visible:false, global:{ x:0, y:0 }, widgets:[] } };
+  for (const f of ((nrdpReal.gibbon.__evl||{}).mouse||[]).slice()) { try { f(ev); } catch(e){ console.log('[mouse listener THROW]', e&&e.stack||e); } }
 }
 let viewerProc = null;
 process.on('exit', ()=>{ if (!globalThis.__restarting && viewerProc) { try{ process.kill(viewerProc.pid, 'SIGTERM'); }catch{} } });
@@ -1334,10 +1456,10 @@ function startViewer(){
     console.log('[viewer] reaproveitando a janela existente (pid', attachPid + ')');
     const iv = setInterval(()=>{ try{ process.kill(attachPid, 0); }catch{ console.log('[viewer] janela fechada; encerrando runtime.'); process.exit(0); } }, 1000); iv.unref && 0;
   } else {
-    viewerProc = cp.spawn('sh', ['-c', 'exec 3<>"$1"; shift; exec "$@" >&3', 'sh', KEYFIFO, bin, SCENE_FILE], { stdio:['ignore','ignore','inherit'], detached:true, env:Object.assign({}, process.env, { SPLASH_DIR: path.resolve(__dirname,'../cache/splash2') }) });
+    viewerProc = cp.spawn('sh', ['-c', 'exec 3<>"$1"; shift; exec "$@" >&3', 'sh', KEYFIFO, bin, SCENE_FILE], { stdio:['ignore','ignore','inherit'], detached:true, env:Object.assign({}, process.env, { SPLASH_DIR: path.resolve(__dirname,'../cache/splash2'), WINDOW_STATE: path.resolve(__dirname,'../data/window.txt') }) });
     viewerProc.on('exit', ()=>{ console.log('[viewer] janela fechada; encerrando runtime.'); process.exit(0); });
   }
-  { let ib=''; const rs = fs.createReadStream(KEYFIFO, { flags:'r' }); rs.on('error', ()=>{}); rs.on('data', d=>{ ib+=d; let i; while((i=ib.indexOf('\n'))>=0){ const l=ib.slice(0,i); ib=ib.slice(i+1); const m=/^KEY (\S+) (\d) (\d)/.exec(l); if(m) dispatchKey(m[1], m[2]==='1', m[3]==='1'); else if(l) console.log('[viewer]', l); } }); }
+  { let ib=''; const rs = fs.createReadStream(KEYFIFO, { flags:'r' }); rs.on('error', ()=>{}); rs.on('data', d=>{ ib+=d; let i; while((i=ib.indexOf('\n'))>=0){ const l=ib.slice(0,i); ib=ib.slice(i+1); const m=/^KEY (\S+) (\d) (\d)/.exec(l); const mm=m?null:/^MOUSE (move|press|release|wheel) (\S+) (\S+) (\d+) (\d+)/.exec(l); if(m) dispatchKey(m[1], m[2]==='1', m[3]==='1'); else if(mm) dispatchMouse(mm[1], +mm[2], +mm[3], +mm[4], +mm[5]); else if(/^TXT \d+/.test(l)) dispatchText(+l.slice(4)); else if(l) console.log('[viewer]', l); } }); }
   console.log('[viewer] janela aberta ->', SCENE_FILE);
   { let n=0, tot=0, last=Date.now(); let __tk=0; let __tk3=0; setInterval(()=>{ if (__vfOn && !(globalThis.__animN>0) && (__tk++ & 1)) return;
     if (!__vfOn && (globalThis.__staticN||0)>=10 && !(globalThis.__animN>0) && !__E.NOADAPTTICK && ((__tk3++%3)!==0)) return;         const t0=process.hrtime.bigint(); try{ writeSceneAtomic(); }catch(e){} if(__E.SERTIME){ tot+=Number(process.hrtime.bigint()-t0)/1e6; if(++n===120){ console.log('[sertime] media ms/tick', (tot/n).toFixed(2), 'tick/s', (n*1000/(Date.now()-last)).toFixed(1)); n=0; tot=0; last=Date.now(); } } }, Math.round(1000/(+__E.FPS||60))); }

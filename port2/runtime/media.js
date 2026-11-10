@@ -90,11 +90,11 @@ module.exports = function make(ctx) {
       const ids = (types || []).map(t => { const id = ++bufId; buffers.set(id, { id, source: sid, type: t === 0 ? 'audio' : 'video', parts: [], eos: false }); const s = sources.get(sid); s && s.buffers.push(id); return id; });
       mlog('createSourceBuffers', sid, types, ids); return { success: true, bufferids: ids };
     },
-    attachDataToSourceBuffer(data, sid, bid, flag) { const b = buffers.get(bid); if (b) { b.parts.push({ kind: 'data', data: Buffer.from(data) }); dump(bid, 'data', data); }
+    attachDataToSourceBuffer(data, sid, bid, flag) { const b = buffers.get(bid); if (b) { b.parts.push({ kind: 'data', data: Buffer.from(data), off: b.tsOffset }); dump(bid, 'data', data); }
       mlog('attachData', bid, data && data.byteLength, 'flag', flag); ctx.onAppend && ctx.onAppend(bid); return { success: true }; },
     attachRequestToSourceBuffer(rid, bid, flag, sid) { const r = requests.get(rid), b = buffers.get(bid);
       mlog('attachRequest', rid, '->buf', bid, 'flag', flag, 'have', r && r.body && r.body.length);
-      if (r && b) { r.appended = true; b.parts.push({ kind: 'req', req: r }); const go = () => { if (r.body) { dump(bid, 'req' + rid, r.body); ctx.onAppend && ctx.onAppend(bid); } else setTimeout(go, 20); }; go(); }
+      if (r && b) { r.appended = true; b.parts.push({ kind: 'req', req: r, off: b.tsOffset }); const go = () => { if (r.body) { dump(bid, 'req' + rid, r.body); ctx.onAppend && ctx.onAppend(bid); } else setTimeout(go, 20); }; go(); }
       return { success: true }; },
     endOfStream(bid) { const b = buffers.get(bid); if (b) b.eos = true; mlog('endOfStream', bid); return { success: true }; },
     sourceBufferSetTimestampOffset(sid, bid, off, ts) { const b = buffers.get(bid); if (b) b.tsOffset = [off, ts]; mlog('tsOffset', bid, off, ts); return { success: true }; },
@@ -121,7 +121,7 @@ module.exports = function make(ctx) {
   function makePlayer(index) {
     const base = Object.assign({ index, path: '/mediasourceplayer/' + index, state: ST.CLOSED }, ST);
     const p = logProxy('player' + index, base);
-    let pauseKeep = null; let startPts = 0, openArgs = null, pipe = null, paused = false, ticker = null, openTimer = null;
+    let pauseKeep = null; let rebase = false; let startPts = 0, openArgs = null, pipe = null, paused = false, ticker = null, openTimer = null;
     const setState = (s) => { base.state = s; base.emit('statechanged', { type: 'statechanged', state: s, time: mono() }); };
     const mySource = () => { let best = null; for (const sc of sources.values()) if (sc.player === base.path && (!best || sc.id > best.id)) best = sc; return best; };
     const frameFile = FRAME_DIR + '/gibbon_video_' + index + '.rgba';
@@ -132,28 +132,40 @@ module.exports = function make(ctx) {
 
     const pr = { q: [], clock0: null, first: 0, timer: null, src: null, srcs: new Set(), pausedAt: 0, nextPts: undefined, st: { in: 0, shown: 0, drop: 0, reanchor: 0, lagMax: 0, t0: Date.now() } };
     if (process.env.MEDIALOG) setInterval(() => { const q = pr.st; if (q.in) { const sec = (Date.now() - q.t0) / 1000; mlog('vid-stats', 'dec_fps=' + (q.in / sec).toFixed(1), 'show_fps=' + (q.shown / sec).toFixed(1), 'drop=' + q.drop, 'reanc=' + q.reanchor, 'lagMax=' + Math.round(q.lagMax) + 'ms', 'fila=' + pr.q.length); pr.st = { in: 0, shown: 0, drop: 0, reanchor: 0, lagMax: 0, t0: Date.now() }; } }, 2000).unref();
-    const prReset = () => { clearTimeout(pr.timer); pr.timer = null; pr.q.length = 0; pr.clock0 = null; pr.src = null; pr.srcs.clear(); pr.nextPts = undefined; };
+    const prReset = () => { pr.lastPts = undefined; clearTimeout(pr.timer); pr.timer = null; pr.q.length = 0; pr.clock0 = null; pr.src = null; pr.srcs.clear(); pr.nextPts = undefined; };
     function prRun() {
       if (pr.timer || paused) return;
       while (pr.q.length) {
         const f = pr.q[0], now = Date.now();
-        if (pr.clock0 === null) { pr.clock0 = now + 60; pr.first = f.pts; }
+        if (pr.clock0 === null) { pr.clock0 = now + 60; pr.first = f.pts; pr.lastPts = undefined; }
+        if (pr.lastPts !== undefined && Math.abs(f.pts - pr.lastPts) > 1.5) { mlog('pts-salto', 'ultimo=' + pr.lastPts.toFixed(2), 'novo=' + f.pts.toFixed(2), 'first=' + pr.first.toFixed(2), 'atraso=' + Math.round(now - (pr.clock0 + (f.pts - pr.first) * 1000)) + 'ms'); pr.clock0 = now + 60 - (f.pts - pr.first) * 1000; pr.lastSaltoAt = now; }
+        pr.lastPts = f.pts;
         const due = pr.clock0 + (f.pts - pr.first) * 1000;
         if (now - due > pr.st.lagMax) pr.st.lagMax = now - due;
         if (now > due + 1500) { pr.st.reanchor++; pr.clock0 = now + 60 - (f.pts - pr.first) * 1000; continue; }
         if (now > due + 90 && pr.q.length > 1) { pr.st.drop++; pr.q.shift(); f.rel && f.rel(f.frame); continue; }
-        if (now >= due - 4) { pr.st.shown++; pr.q.shift(); f.st.onFrame(f.sz, f.frame, Math.round((f.pts - pr.first) * 1000)); f.rel && f.rel(f.frame); continue; }
+        if (now >= due - 4) { pr.st.shown++; pr.q.shift(); f.st.onFrame(f.sz, f.frame, Math.round((f.pts - pr.first) * 1000), f.pts, f.sess); f.rel && f.rel(f.frame); continue; }
         pr.timer = setTimeout(() => { pr.timer = null; prRun(); }, Math.max(1, due - now)); break;
       }
       if (pr.q.length < 3) for (const sr of pr.srcs) { try { sr.stdout.resume(); } catch {} }
     }
-    function prEnqueue(st, sz, frame, pts, src) { pr.st.in++; pr.src = src; pr.srcs.add(src); pr.q.push({ st, sz, frame, pts }); if (pr.q.length >= 6) { try { src.stdout.pause(); } catch {} } prRun(); }
+    function prEnqueue(st, sz, frame, pts, src, rel, sess) { pr.st.in++; pr.src = src; pr.srcs.add(src); pr.q.push({ st, sz, frame, pts, sess }); if (pr.q.length >= 6) { try { src.stdout.pause(); } catch {} } prRun(); }
 
     function makeChain(b, kind, st) {
-      const segs = []; let cursor = 0, cur = null, si = 0, proc = null, fed = 0, dead = false, done = false;
+      const segs = []; let cursor = 0, cur = null, si = 0, proc = null, fed = 0, dead = false, done = false, waitDrain = false;
       const c = { kind, kill() { dead = true; if (proc) { try { proc.kill('SIGKILL'); } catch {} } }, signal(sg) { if (proc) try { proc.kill(sg); } catch {} }, get done() { return done; } };
+      function audioGate(sg) {
+        const now = Date.now(); sg.gateT0 = sg.gateT0 || now;
+        if (pr.clock0 === null || !pipe || paused) return true;
+        if (now - sg.gateT0 > 2500) return true;
+        if (sg.sessStart === undefined) return now - sg.gateT0 > 600;
+        const d = sg.sessStart - base.__curPts / 1000;
+        if (Math.abs(d) > 5) return (pr.lastSaltoAt || 0) >= sg.readyAt - 3000;
+        return d <= 0.25;
+      }
       function spawnSeg() {
         const sg = segs[si];
+        if (kind === 'audio' && !audioGate(sg)) { setTimeout(() => { if (!dead && !proc) advance(); }, 40); return false; }
         const RE = kind === 'video' ? [] : ['-re'];
         const args = sg.raw ? ['-hide_banner', '-loglevel', process.env.FFLOGLEVEL || 'error', ...RE, '-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-video_size', sg.raw.w + 'x' + sg.raw.h, '-framerate', String(fps()), '-i', 'pipe:0']
                             : ['-hide_banner', '-loglevel', 'error', ...RE, '-f', 'mp4', '-i', 'pipe:0'];
@@ -161,7 +173,7 @@ module.exports = function make(ctx) {
         if (kind === 'video') { sz = sg.raw || mp4Size(sg.chunks[0]); if (!sz) { sg.skip = true; return false; } if (!sg.raw) args.push('-map', '0:v:0'); args.push('-pix_fmt', 'rgba', '-f', 'rawvideo', 'pipe:1'); }
         else args.push('-vn', '-ac', '2', '-ar', '48000', '-f', 'pulse', '-name', 'Netflix', '-stream_name', 'Netflix', '-buffer_duration', '100', 'Netflix');
         mlog('ffmpeg', kind, 'seg', si, sz);
-        proc = cp.spawn('ffmpeg', args, { stdio: ['pipe', 'pipe', 'pipe'] }); fed = sg.resumeFed || 0; sg.resumeFed = 0; const base = fed; let outN = 0;
+        proc = cp.spawn('ffmpeg', args, { stdio: ['pipe', 'pipe', 'pipe'] }); waitDrain = false; fed = sg.resumeFed || 0; sg.resumeFed = 0; const base = fed; let outN = 0;
         const me = proc; CHILDREN.add(me); me.on('exit', () => CHILDREN.delete(me));
         me.stderr.on('data', d => { if (process.env.MEDIALOG && process.env.FFLOG) console.log('[ffmpeg ' + kind + ']', String(d).trim().slice(0, 200)); });
         me.stdin.on('error', (e) => { mlog('ffmpeg stdin erro', kind, si, e && e.code, e && e.message, 'pendente=' + me.stdin.writableLength); }); me.stdin.on('close', () => { mlog('ffmpeg stdin fechou', kind, si, 'destruido=' + me.stdin.destroyed, 'pendente=' + me.stdin.writableLength, 'fed=' + fed); });
@@ -170,7 +182,7 @@ module.exports = function make(ctx) {
           const rel = (b) => { if (b.length === fsz && pool.length < 4) pool.push(b); };
           me.stdout.on('data', d => { let o = 0;
             while (o < d.length) { const n = Math.min(fsz - off, d.length - o); d.copy(cur, off, o, o + n); off += n; o += n;
-              if (off === fsz) { outN++; if (sg.raw) sg.chunks[base + outN - 1] = null; if (sg.t0 === undefined) sg.t0 = (pr.nextPts !== undefined ? pr.nextPts : 0); const fp = sg.fps || fps(), pts = sg.t0 + (sg.fn = (sg.fn || 0) + 1, sg.fn - 1) / fp; pr.nextPts = pts + 1 / fp; prEnqueue(st, sz, cur, pts, me, rel); cur = pool.pop() || Buffer.allocUnsafe(fsz); off = 0; } } });
+              if (off === fsz) { outN++; if (sg.raw) sg.chunks[base + outN - 1] = null; if (sg.t0 === undefined) sg.t0 = (pr.nextPts !== undefined ? pr.nextPts : 0); const fp = sg.fps || fps(), pts = sg.t0 + (sg.fn = (sg.fn || 0) + 1, sg.fn - 1) / fp; pr.nextPts = pts + 1 / fp; let sess; if (sg.fmap && sg.fmap.length) { const fn0 = sg.fn - 1; if (sg.fk === undefined) sg.fk = 0; while (sg.fk + 1 < sg.fmap.length && sg.fmap[sg.fk + 1].start <= fn0) sg.fk++; const fm = sg.fmap[sg.fk]; sess = fm.sess0 + (fn0 - fm.start) / fp; } prEnqueue(st, sz, cur, pts, me, rel, sess); cur = pool.pop() || Buffer.allocUnsafe(fsz); off = 0; } } });
         }
         me.on('exit', (code, sig) => { mlog('ffmpeg exit', kind, si, code, sig || '', 'closed=' + !!sg.closed, 'fed=' + fed + '/' + sg.chunks.length); if (proc !== me) return; proc = null;
           if (kind === 'video' && sg.raw && !sg.closed && !dead && (sg.respawns = (sg.respawns || 0) + 1) <= 20) { sg.resumeFed = base + outN; mlog('ffmpeg video: saida precoce, retomando o segmento', si, 'respawn', sg.respawns, 'quadros reenviados', fed - (base + outN)); advance(); return; }
@@ -182,7 +194,11 @@ module.exports = function make(ctx) {
         if (!proc) {
           while (si < segs.length && !proc) { if (segs[si].skip || !spawnSeg()) { if (segs[si] && segs[si].skip) si++; else break; } }
         }
-        if (proc) { const sg = segs[si]; while (fed < sg.chunks.length) { try { proc.stdin.write(sg.chunks[fed]); } catch {} fed++; } if (sg.closed && fed >= sg.chunks.length) { try { proc.stdin.end(); } catch {} } }
+        if (proc) { const sg = segs[si]; const cap = (kind === 'video' && sg.raw) ? 4 * Math.ceil(sg.raw.w * sg.raw.h * 3 / 2) : Infinity;
+          while (fed < sg.chunks.length) {
+            if (proc.stdin.writableLength >= cap) { if (!waitDrain) { waitDrain = true; const p = proc; p.stdin.once('drain', () => { waitDrain = false; if (proc === p) advance(); }); } break; }
+            try { proc.stdin.write(sg.chunks[fed]); } catch {} fed++;
+          } if (sg.closed && fed >= sg.chunks.length) { try { proc.stdin.end(); } catch {} } }
         else if (si >= segs.length && segs.length && segs[segs.length - 1].closed) { if (!done) { done = true; st.onDone(kind); } }
       }
       const trackKey = 'p' + index + '-b' + b.id; let busy = false, again = false;
@@ -202,9 +218,20 @@ module.exports = function make(ctx) {
                 let raw = null;
                 if (enc) { const r = await cdmb().call(cdmb().OP.SET_INIT, [trackKey, data]); if (r.status === 0) { d = r.rets[0]; const dim = r.rets[2] ? String(r.rets[2]) : ''; if (kind === 'video' && dim) { const m = dim.split('x'); raw = { w: +m[0], h: +m[1] }; } } else mlog('SET_INIT falhou', String(r.rets[0])); }
                 if (kind === 'video') { (globalThis.__vidProt = globalThis.__vidProt || {})[index] = !!raw; }
-                segs.push({ chunks: raw ? [] : [d], closed: false, enc, raw, ts: kind === 'video' ? mdhdTimescale(data) : 0 });
+                segs.push({ chunks: raw ? [] : [d], closed: false, enc, raw, ts: mdhdTimescale(data) });
               } else if (segs.length) {
                 const sg = segs[segs.length - 1]; let d = data; if (kind === 'video' && sg.t0 === undefined) { const t = tfdtSec(data, sg.ts); if (t !== undefined) { sg.t0 = t; const ff = segFps(data, sg.ts); if (ff > 5 && ff < 125) sg.fps = ff; mlog('stream-fps', 'real=' + ff.toFixed(3), 'declarado=' + fps().toFixed(3), 'ts=' + sg.ts, 't0=' + sg.t0.toFixed(2)); } }
+                if (kind === 'audio' && sg.sessStart === undefined && sg.ts) {
+                  const fa = fragInfo(data), offA = (part.off && part.off[1]) ? part.off[0] / part.off[1] : 0;
+                  if (fa.tfdt != null) { sg.sessStart = fa.tfdt / sg.ts + offA; sg.readyAt = Date.now(); if (process.env.MEDIALOG) mlog('audio-sessao', 'inicio=' + sg.sessStart.toFixed(2), 'ts=' + sg.ts); }
+                }
+                if (kind === 'video') {
+                  const f2 = fragInfo(data), tf = (f2.tfdt != null && sg.ts) ? f2.tfdt / sg.ts : undefined, offS = (part.off && part.off[1]) ? part.off[0] / part.off[1] : 0;
+                  const pm = (sg.fmap || (sg.fmap = [])).slice(-1)[0], fpsx = sg.fps || fps();
+                  const sess0 = tf !== undefined ? tf + offS : (pm ? pm.sess0 + (sg.fmapN - pm.start) / fpsx : offS);
+                  sg.fmap.push({ start: sg.fmapN || 0, sess0 }); sg.fmapN = (sg.fmapN || 0) + f2.samples;
+                  if (process.env.MEDIALOG) mlog('frag-sessao', 'tfdt=' + (tf !== undefined ? tf.toFixed(2) : '?'), 'off=' + offS.toFixed(2), 'sessao=' + sess0.toFixed(2), 'amostras=' + f2.samples);
+                }
                 if (sg.raw) {
                   const seg0 = fixSdi(data); let from = 0, first = true; let gotN = 0; const fi = process.env.MEDIALOG ? fragInfo(data) : null;
                   for (;;) {
@@ -240,12 +267,13 @@ module.exports = function make(ctx) {
       if (!vb || !vb.parts.length) return false;
       let seq = 0, lastEmit = 0, frames = 0; const fpsv = fps();
       const st = {
-        onFrame(sz, frame, relMs) {
+        onFrame(sz, frame, relMs, absPts, sessPts) {
           if (!pipe || pipe.st !== st) return;
+          if (rebase && typeof absPts === 'number' && absPts > 0) { startPts = Math.round(absPts * 1000) - (relMs || 0); rebase = false; mlog('player.rebase startPts=' + startPts); }
           const hdr = Buffer.alloc(12); hdr.writeUInt32LE(sz.w, 0); hdr.writeUInt32LE(sz.h, 4); hdr.writeUInt32LE(++seq, 8);
           try { const fd = fs.openSync(frameFile + '.tmp', 'w'); fs.writeSync(fd, hdr); fs.writeSync(fd, frame, 0, frame.length); fs.closeSync(fd); fs.renameSync(frameFile + '.tmp', frameFile); } catch {}
-          frames++; base.__curPts = startPts + (relMs !== undefined ? relMs : Math.round(frames * 1000 / fpsv)); const now = Date.now();
-          if (now - lastEmit >= 200) { lastEmit = now; base.emit('updatepts', { type: 'updatepts', pts: startPts + (relMs !== undefined ? relMs : Math.round(frames * 1000 / fpsv)), time: mono() }); }
+          frames++; const posMs = (typeof sessPts === 'number' && isFinite(sessPts)) ? Math.round(sessPts * 1000) : startPts + (relMs !== undefined ? relMs : Math.round(frames * 1000 / fpsv)); base.__curPts = posMs; const now = Date.now();
+          if (now - lastEmit >= 200) { lastEmit = now; if (process.env.MEDIALOG && now - (globalThis.__ptsLogT || 0) > 2000) { globalThis.__ptsLogT = now; mlog('updatepts', posMs, 'sessao=' + (typeof sessPts === 'number')); } base.emit('updatepts', { type: 'updatepts', pts: posMs, time: mono() }); }
         },
         onDone() { if (pipe && pipe.chains.every(c => c.done) && base.state === ST.PLAYING) { base.emit('endofstream', { type: 'endofstream', media: 0, time: mono() }); base.emit('endofstream', { type: 'endofstream', media: 1, time: mono() }); } },
       };
@@ -257,7 +285,7 @@ module.exports = function make(ctx) {
 
     base.open = (args) => { if (process.env.OPENSTACK) console.log('[open-stack]', JSON.stringify(args).slice(0,200), '\n'+String(new Error().stack).split('\n').slice(1,60).join('\n')); openArgs = args; startPts = (args && args.pts) || 0; killPipe(); mlog('player.open', args); setState(ST.OPENING);
       clearTimeout(openTimer); openTimer = setTimeout(() => { if (base.state === ST.OPENING) { setState(ST.STOPPED); base.emit('opencomplete', { type: 'opencomplete', time: mono() }); } }, 300); };
-    base.close = () => { clearTimeout(openTimer); if (globalThis.__vidProt) globalThis.__vidProt[index] = false; killPipe(); if (base.state !== ST.CLOSED) setState(ST.CLOSED); };
+    base.close = () => { mlog('player.close', 'estado=' + base.state); clearTimeout(openTimer); if (globalThis.__vidProt) globalThis.__vidProt[index] = false; killPipe(); if (base.state !== ST.CLOSED) setState(ST.CLOSED); };
     const swimTo = (arg) => { const o = (arg && typeof arg === 'object') ? arg : { pts: arg }; const cur = base.__curPts !== undefined ? base.__curPts : startPts; const tgt = typeof o.pts !== 'number' ? undefined : (o.absolute ? o.pts : cur + o.pts); mlog('player.swim ->', JSON.stringify(o), 'atual=' + cur, 'alvo=' + tgt); clearTimeout(openTimer); if (typeof tgt === 'number' && isFinite(tgt)) { startPts = Math.max(0, tgt); base.__curPts = startPts; } killPipe(); { const sc = mySource(); if (sc) for (const bid of sc.buffers) { const b = buffers.get(bid); if (b) { b.parts.length = 0; b.eos = false; } } }    
       if (base.state !== ST.CLOSED) { base.state = ST.PLAYING; setState(ST.STOPPED); } };
     base.disableAudio = () => {
@@ -280,16 +308,17 @@ module.exports = function make(ctx) {
     };
     base.swim2 = (a) => { swimTo(a); };
     base.swim = (pts) => { swimTo(pts); };
-    base.stop = () => { killPipe(); if (base.state !== ST.CLOSED && base.state !== ST.STOPPED) setState(ST.STOPPED); };
+    base.stop = () => { mlog('player.stop', 'estado=' + base.state); killPipe(); rebase = true; { const sc = mySource(); if (sc) for (const bid of sc.buffers) { const b = buffers.get(bid); if (b) { b.parts.length = 0; b.eos = false; } } } if (base.state !== ST.CLOSED && base.state !== ST.STOPPED) setState(ST.STOPPED); };
     base.play = (ptsArg) => {
+      mlog('player.play', JSON.stringify(ptsArg), 'startPts=' + startPts, 'estado=' + base.state);
       if (process.env.OPENSTACK) console.log('[play-stack]', ptsArg, '\n'+String(new Error().stack).split('\n').slice(1,60).filter(l=>!/nrdjs.min/.test(l)).join('\n'));
       if (typeof ptsArg === 'number') startPts = ptsArg; paused = false;
       const go = (n) => { if (base.state === ST.CLOSED) return; if (Date.now() - (globalThis.__gateTick || 0) < 1200) { setTimeout(() => go(n), 250); return; }     if (!pipe && !startPipe()) { if (n < 100) setTimeout(() => go(n + 1), 100); return; } };
       setState(ST.PLAYING); go(0);
     };
     base.play2 = () => base.play();
-    base.pause = () => { if (pipe) pipe.chains.forEach(c => c.signal('SIGSTOP')); paused = true; clearInterval(pauseKeep); pauseKeep = setInterval(() => { try { const t = new Date(); fs.utimesSync(frameFile, t, t); } catch {} }, 500);     pr.pausedAt = Date.now(); clearTimeout(pr.timer); pr.timer = null; setState(ST.PAUSED); };
-    base.unpause = () => { clearInterval(pauseKeep); if (pipe) pipe.chains.forEach(c => c.signal('SIGCONT')); if (pr.clock0 !== null && pr.pausedAt) pr.clock0 += Date.now() - pr.pausedAt; paused = false; setState(ST.PLAYING); prRun(); };
+    base.pause = () => { mlog('player.pause'); if (pipe) pipe.chains.forEach(c => c.signal('SIGSTOP')); paused = true; clearInterval(pauseKeep); pauseKeep = setInterval(() => { try { const t = new Date(); fs.utimesSync(frameFile, t, t); } catch {} }, 500);     pr.pausedAt = Date.now(); clearTimeout(pr.timer); pr.timer = null; setState(ST.PAUSED); };
+    base.unpause = () => { mlog('player.unpause'); clearInterval(pauseKeep); if (pipe) pipe.chains.forEach(c => c.signal('SIGCONT')); if (pr.clock0 !== null && pr.pausedAt) pr.clock0 += Date.now() - pr.pausedAt; paused = false; setState(ST.PLAYING); prRun(); };
     base.swim = (a) => { mlog('player.swim', a); };
     base.addEventListener = base.addListener;
     players.set(index, base);
