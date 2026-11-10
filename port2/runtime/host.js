@@ -61,6 +61,7 @@ function loadChunk(fname, url) {
   code = code.split('drawOrder:null!=f?f:o&&b?1:void 0,testAttributes:x}').join('drawOrder:null!=f?f:o&&b?1:void 0,layoutStretch:E,testAttributes:x}');
   code = code.split('drawOrder:null!=h?h:d&&J?1:void 0,entered:Y,').join('drawOrder:null!=h?h:d&&J?1:void 0,layoutStretch:A,entered:Y,');
   if (process.env.BTNLOG) code = code.split('function F(e){var t=e.accessibilityRole,a=void 0===t?"button":t,').join('function F(e){globalThis.__mark("[btnF]",e.name,String(e.layoutStretch),Object.keys(e).join(","));var t=e.accessibilityRole,a=void 0===t?"button":t,');
+  if (process.env.SKIPBACKUI !== '1') code = code.split('t.isSkipBackBufferFull=function(){return!0}').join('t.isSkipBackBufferFull=function(){return!1}');
   code = code.split('Z=J.hasFullScreenDelay,ee=J.initialListItem').join('Z=J.hasFullScreenDelay!==false,ee=J.initialListItem');
   code = code.split('f=(0,(s||(s=n(65435))).useGetListConfig)().initialFullScreenDelayInSeconds,').join('f=((0,(s||(s=n(65435))).useGetListConfig)().initialFullScreenDelayInSeconds)||5,');
   code = code.split('d=e.gateStackRequest,s=e.interstitialDGSRequest,').join('d=e.gateStackRequest||[],s=e.interstitialDGSRequest,');

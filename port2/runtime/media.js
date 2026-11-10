@@ -16,6 +16,12 @@ function segFps(buf, ts) { if (!ts) return 0; let dur = 0;
   const j = buf.indexOf('trun'); if (j > 0) { const fl = buf.readUInt32BE(j + 4) & 0xffffff; let o = j + 12; if (fl & 1) o += 4; if (fl & 4) o += 4; if ((fl & 0x100) && o + 4 <= buf.length) { const d = buf.readUInt32BE(o); if (d > 0) dur = d; } }
   return dur > 0 ? ts / dur : 0; }
 
+function fragInfo(buf) {
+  let n = 0, i = 0, first = null;
+  while ((i = buf.indexOf('trun', i)) >= 0) { n += buf.readUInt32BE(i + 8); i += 4; }
+  const td = buf.indexOf('tfdt'); if (td >= 0) first = buf[td + 4] === 1 ? Number(buf.readBigUInt64BE(td + 8)) : buf.readUInt32BE(td + 8);
+  return { samples: n, tfdt: first };
+}
 function fixSdi(buf) {
   let b = null;
   for (let i = buf.indexOf('tfhd'); i > 0; i = buf.indexOf('tfhd', i + 4)) {
@@ -149,25 +155,25 @@ module.exports = function make(ctx) {
       function spawnSeg() {
         const sg = segs[si];
         const RE = kind === 'video' ? [] : ['-re'];
-        const args = sg.raw ? ['-hide_banner', '-loglevel', 'error', ...RE, '-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-video_size', sg.raw.w + 'x' + sg.raw.h, '-framerate', String(fps()), '-i', 'pipe:0']
+        const args = sg.raw ? ['-hide_banner', '-loglevel', process.env.FFLOGLEVEL || 'error', ...RE, '-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-video_size', sg.raw.w + 'x' + sg.raw.h, '-framerate', String(fps()), '-i', 'pipe:0']
                             : ['-hide_banner', '-loglevel', 'error', ...RE, '-f', 'mp4', '-i', 'pipe:0'];
         let sz = null;
         if (kind === 'video') { sz = sg.raw || mp4Size(sg.chunks[0]); if (!sz) { sg.skip = true; return false; } if (!sg.raw) args.push('-map', '0:v:0'); args.push('-pix_fmt', 'rgba', '-f', 'rawvideo', 'pipe:1'); }
         else args.push('-vn', '-ac', '2', '-ar', '48000', '-f', 'pulse', '-name', 'Netflix', '-stream_name', 'Netflix', '-buffer_duration', '100', 'Netflix');
         mlog('ffmpeg', kind, 'seg', si, sz);
-        proc = cp.spawn('ffmpeg', args, { stdio: ['pipe', 'pipe', 'pipe'] }); fed = sg.resumeFed || 0; sg.resumeFed = 0;
+        proc = cp.spawn('ffmpeg', args, { stdio: ['pipe', 'pipe', 'pipe'] }); fed = sg.resumeFed || 0; sg.resumeFed = 0; const base = fed; let outN = 0;
         const me = proc; CHILDREN.add(me); me.on('exit', () => CHILDREN.delete(me));
         me.stderr.on('data', d => { if (process.env.MEDIALOG && process.env.FFLOG) console.log('[ffmpeg ' + kind + ']', String(d).trim().slice(0, 200)); });
-        me.stdin.on('error', () => {});
+        me.stdin.on('error', (e) => { mlog('ffmpeg stdin erro', kind, si, e && e.code, e && e.message, 'pendente=' + me.stdin.writableLength); }); me.stdin.on('close', () => { mlog('ffmpeg stdin fechou', kind, si, 'destruido=' + me.stdin.destroyed, 'pendente=' + me.stdin.writableLength, 'fed=' + fed); });
         if (kind === 'video') {
           const fsz = sz.w * sz.h * 4; let off = 0; const pool = []; let cur = Buffer.allocUnsafe(fsz);
           const rel = (b) => { if (b.length === fsz && pool.length < 4) pool.push(b); };
           me.stdout.on('data', d => { let o = 0;
             while (o < d.length) { const n = Math.min(fsz - off, d.length - o); d.copy(cur, off, o, o + n); off += n; o += n;
-              if (off === fsz) { if (sg.t0 === undefined) sg.t0 = (pr.nextPts !== undefined ? pr.nextPts : 0); const fp = sg.fps || fps(), pts = sg.t0 + (sg.fn = (sg.fn || 0) + 1, sg.fn - 1) / fp; pr.nextPts = pts + 1 / fp; prEnqueue(st, sz, cur, pts, me, rel); cur = pool.pop() || Buffer.allocUnsafe(fsz); off = 0; } } });
+              if (off === fsz) { outN++; if (sg.raw) sg.chunks[base + outN - 1] = null; if (sg.t0 === undefined) sg.t0 = (pr.nextPts !== undefined ? pr.nextPts : 0); const fp = sg.fps || fps(), pts = sg.t0 + (sg.fn = (sg.fn || 0) + 1, sg.fn - 1) / fp; pr.nextPts = pts + 1 / fp; prEnqueue(st, sz, cur, pts, me, rel); cur = pool.pop() || Buffer.allocUnsafe(fsz); off = 0; } } });
         }
         me.on('exit', (code, sig) => { mlog('ffmpeg exit', kind, si, code, sig || '', 'closed=' + !!sg.closed, 'fed=' + fed + '/' + sg.chunks.length); if (proc !== me) return; proc = null;
-          if (kind === 'video' && sg.raw && !sg.closed && !dead && (sg.respawns = (sg.respawns || 0) + 1) <= 20) { sg.resumeFed = fed; mlog('ffmpeg video: saida precoce, retomando o segmento', si, 'respawn', sg.respawns); advance(); return; }
+          if (kind === 'video' && sg.raw && !sg.closed && !dead && (sg.respawns = (sg.respawns || 0) + 1) <= 20) { sg.resumeFed = base + outN; mlog('ffmpeg video: saida precoce, retomando o segmento', si, 'respawn', sg.respawns, 'quadros reenviados', fed - (base + outN)); advance(); return; }
           si++; if (!dead) advance(); });
         return true;
       }
@@ -176,7 +182,7 @@ module.exports = function make(ctx) {
         if (!proc) {
           while (si < segs.length && !proc) { if (segs[si].skip || !spawnSeg()) { if (segs[si] && segs[si].skip) si++; else break; } }
         }
-        if (proc) { const sg = segs[si]; while (fed < sg.chunks.length) { try { proc.stdin.write(sg.chunks[fed]); } catch {} if (sg.raw) sg.chunks[fed] = null; fed++; } if (sg.closed && fed >= sg.chunks.length) { try { proc.stdin.end(); } catch {} } }
+        if (proc) { const sg = segs[si]; while (fed < sg.chunks.length) { try { proc.stdin.write(sg.chunks[fed]); } catch {} fed++; } if (sg.closed && fed >= sg.chunks.length) { try { proc.stdin.end(); } catch {} } }
         else if (si >= segs.length && segs.length && segs[segs.length - 1].closed) { if (!done) { done = true; st.onDone(kind); } }
       }
       const trackKey = 'p' + index + '-b' + b.id; let busy = false, again = false;
@@ -200,18 +206,19 @@ module.exports = function make(ctx) {
               } else if (segs.length) {
                 const sg = segs[segs.length - 1]; let d = data; if (kind === 'video' && sg.t0 === undefined) { const t = tfdtSec(data, sg.ts); if (t !== undefined) { sg.t0 = t; const ff = segFps(data, sg.ts); if (ff > 5 && ff < 125) sg.fps = ff; mlog('stream-fps', 'real=' + ff.toFixed(3), 'declarado=' + fps().toFixed(3), 'ts=' + sg.ts, 't0=' + sg.t0.toFixed(2)); } }
                 if (sg.raw) {
-                  const seg0 = fixSdi(data); let from = 0, first = true;
+                  const seg0 = fixSdi(data); let from = 0, first = true; let gotN = 0; const fi = process.env.MEDIALOG ? fragInfo(data) : null;
                   for (;;) {
                     if (dead) break;
                     while (!dead && (sg === segs[si] ? sg.chunks.length - fed : sg.chunks.length) > 12) await new Promise(r => setTimeout(r, 40));
                     const r = await cdmb().call(cdmb().OP.VDEC_SEG, [trackKey, first ? seg0 : Buffer.alloc(0), String(from), '12']); first = false;
                     if (r.status !== 0) { mlog('VDEC_SEG falhou', String(r.rets[0])); break; }
                     const fr = r.rets[0]; let o = 0;
-                    while (o + 8 <= fr.length) { const w = fr.readUInt32BE(o), h = fr.readUInt32BE(o + 4), n = w * h + 2 * (((w + 1) >> 1) * ((h + 1) >> 1)); if (o + 8 + n > fr.length) break; sg.chunks.push(fr.subarray(o + 8, o + 8 + n)); o += 8 + n; }
+                    while (o + 8 <= fr.length) { const w = fr.readUInt32BE(o), h = fr.readUInt32BE(o + 4), n = w * h + 2 * (((w + 1) >> 1) * ((h + 1) >> 1)); if (o + 8 + n > fr.length) break; sg.chunks.push(fr.subarray(o + 8, o + 8 + n)); o += 8 + n; gotN++; }
                     advance();
                     const nt = String(r.rets[1]).split(','); from = +nt[0];
                     if (nt[1] !== '-1') break;
                   }
+                  if (fi) mlog('vdec-frag', 'samples=' + fi.samples, 'frames=' + gotN, 'tfdt=' + fi.tfdt, 'ts=' + sg.ts, 'dur=' + (fi.samples / (sg.fps || fps())).toFixed(3) + 's', 'perdidos=' + (fi.samples - gotN));
                 } else {
                   if (sg.enc) { const r = await cdmb().call(cdmb().OP.DECRYPT, [trackKey, data]); if (r.status === 0) d = r.rets[0]; else mlog('DECRYPT falhou', String(r.rets[0])); }
                   sg.chunks.push(fixSdi(d));
@@ -237,7 +244,7 @@ module.exports = function make(ctx) {
           if (!pipe || pipe.st !== st) return;
           const hdr = Buffer.alloc(12); hdr.writeUInt32LE(sz.w, 0); hdr.writeUInt32LE(sz.h, 4); hdr.writeUInt32LE(++seq, 8);
           try { const fd = fs.openSync(frameFile + '.tmp', 'w'); fs.writeSync(fd, hdr); fs.writeSync(fd, frame, 0, frame.length); fs.closeSync(fd); fs.renameSync(frameFile + '.tmp', frameFile); } catch {}
-          frames++; const now = Date.now();
+          frames++; base.__curPts = startPts + (relMs !== undefined ? relMs : Math.round(frames * 1000 / fpsv)); const now = Date.now();
           if (now - lastEmit >= 200) { lastEmit = now; base.emit('updatepts', { type: 'updatepts', pts: startPts + (relMs !== undefined ? relMs : Math.round(frames * 1000 / fpsv)), time: mono() }); }
         },
         onDone() { if (pipe && pipe.chains.every(c => c.done) && base.state === ST.PLAYING) { base.emit('endofstream', { type: 'endofstream', media: 0, time: mono() }); base.emit('endofstream', { type: 'endofstream', media: 1, time: mono() }); } },
@@ -251,7 +258,7 @@ module.exports = function make(ctx) {
     base.open = (args) => { if (process.env.OPENSTACK) console.log('[open-stack]', JSON.stringify(args).slice(0,200), '\n'+String(new Error().stack).split('\n').slice(1,60).join('\n')); openArgs = args; startPts = (args && args.pts) || 0; killPipe(); mlog('player.open', args); setState(ST.OPENING);
       clearTimeout(openTimer); openTimer = setTimeout(() => { if (base.state === ST.OPENING) { setState(ST.STOPPED); base.emit('opencomplete', { type: 'opencomplete', time: mono() }); } }, 300); };
     base.close = () => { clearTimeout(openTimer); if (globalThis.__vidProt) globalThis.__vidProt[index] = false; killPipe(); if (base.state !== ST.CLOSED) setState(ST.CLOSED); };
-    const swimTo = (pts) => { mlog('player.swim ->', pts); clearTimeout(openTimer); if (typeof pts === 'number') startPts = pts; killPipe(); { const sc = mySource(); if (sc) for (const bid of sc.buffers) { const b = buffers.get(bid); if (b) { b.parts.length = 0; b.eos = false; } } }    
+    const swimTo = (arg) => { const o = (arg && typeof arg === 'object') ? arg : { pts: arg }; const cur = base.__curPts !== undefined ? base.__curPts : startPts; const tgt = typeof o.pts !== 'number' ? undefined : (o.absolute ? o.pts : cur + o.pts); mlog('player.swim ->', JSON.stringify(o), 'atual=' + cur, 'alvo=' + tgt); clearTimeout(openTimer); if (typeof tgt === 'number' && isFinite(tgt)) { startPts = Math.max(0, tgt); base.__curPts = startPts; } killPipe(); { const sc = mySource(); if (sc) for (const bid of sc.buffers) { const b = buffers.get(bid); if (b) { b.parts.length = 0; b.eos = false; } } }    
       if (base.state !== ST.CLOSED) { base.state = ST.PLAYING; setState(ST.STOPPED); } };
     base.disableAudio = () => {
       mlog('player.disableAudio');
@@ -271,7 +278,7 @@ module.exports = function make(ctx) {
       };
       go(0); return { success: true };
     };
-    base.swim2 = (a) => { swimTo(a && a.pts); };
+    base.swim2 = (a) => { swimTo(a); };
     base.swim = (pts) => { swimTo(pts); };
     base.stop = () => { killPipe(); if (base.state !== ST.CLOSED && base.state !== ST.STOPPED) setState(ST.STOPPED); };
     base.play = (ptsArg) => {
