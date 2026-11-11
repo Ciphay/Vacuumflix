@@ -1131,6 +1131,7 @@ const ABS=[{x:0,y:0}]; const __snap=new Map();
 let __vidRect=null, __carrierNow=false, __carrierPrev=false, __bestNow=null, __bestPrev=null, __bestArea=0;
 function absXY(w){ let x=0,y=0; for(let n=w; n; n=n.__parent){ const L=n.__L, p=n.__p||{}; x+=L?L.x:num(p.x,0); y+=L?L.y:num(p.y,0); } return {x,y}; }
 let __vf0=0, __vfChk=0, __vfOn=false, __vfOff=0;
+if (!process.env.NOIDLEKICK) setInterval(() => { try { if (!__vfOn) return; const c = cp.spawn('gdbus', ['call','--session','--dest','org.freedesktop.ScreenSaver','--object-path','/org/freedesktop/ScreenSaver','--method','org.freedesktop.ScreenSaver.SimulateUserActivity'], { stdio:'ignore' }); c.on('error', ()=>{}); } catch {} }, 20000).unref();
 function videoFade(){ const now=Date.now(); if(now-__vfChk>30){ __vfChk=now; let on=false; const live=new Set(); try{ for(const f of fs.readdirSync('/dev/shm')) if(f.startsWith('gibbon_video_')&&f.endsWith('.rgba')){ live.add(f); if(!on && now-fs.statSync('/dev/shm/'+f).mtimeMs<1500) on=true; } }catch{} globalThis.__vidLive=live; if(on&&!__vfOn) __vf0=now; if(!on&&__vfOn) __vfOff=now; __vfOn=on; } return __vfOn ? 0 : 1; }
 function videoAlpha(){ videoFade(); return __vfOn ? Math.max(0,Math.min(1,(Date.now()-__vf0)/800)) : 0; }
 function videoFading(){ return !__vfOn && __vfOff>0 && Date.now()-__vfOff<700; }
@@ -1325,13 +1326,20 @@ function dispatchText(cp){
   if (cp === 32 && !keyboardVisible()) { keyTap('enter'); return; }
   dispatchHot(code, ch, true, false); setTimeout(() => dispatchHot(code, ch, false, false), 20);
 }
+function playerControlsShown(){ try { const root = nrdpReal.gibbon.scene && nrdpReal.gibbon.scene._widget; let hit=false; (function f(n,d){ if (hit||!n||d>12) return; const q=n.__p||{}; if (q.name==='scrubber' && q.visible!==false) { hit=true; return; } for (const k of n.children||[]) f(k,d+1); })(root,0); return hit; } catch { return false; } }
+let __backFix = 0;
 function dispatchKey(name, down, repeat, keepMouse){
+  if (name === 'back' && down && !repeat && !__E.NOBACKFIX && Date.now() - __backFix > 800 && /^\/playmode$/.test(focusPath()) && playerControlsShown()) {
+    __backFix = Date.now(); dispatchKey('down', true, false, true); setTimeout(() => dispatchKey('down', false, false, true), 30);
+    setTimeout(() => { dispatchKey('back', true, false, true); }, 120); setTimeout(() => dispatchKey('back', false, false, true), 180); return;
+  }
+  if (name === 'back' && !down && !keepMouse && Date.now() - __backFix < 400) return;
   if (name === 'backspace') { if (keyboardVisible()) { dispatchHot(8, '', down, repeat); return; } name = 'back'; }
   globalThis.__staticN = 0;
   const k = KEYMAP[name]; if (!k) return;
   if (down && !keepMouse && __E.MOUSEHIDEKEY !== '0') hideMouse();
   const ev = { type:'key', time: Date.now(), data:{ code:k.code, type: down ? 'press' : 'release', uiEvent:k.ui, repeat: !!repeat, modifiers:[], text:'' } };
-  if (__E.KEYLOG) console.log('[key]', name, down?'down':'up');
+  if (__E.KEYLOG || (__E.BACKDBG && down)) console.log('[key]', name, down?'down':'up', __E.BACKDBG ? 'foco='+focusPath()+' mouse='+__mouseVisible : '');
   for (const f of ((nrdpReal.gibbon.__evl||{}).key||[]).slice()) { try { f(ev); } catch(e){ console.log('[key listener THROW]', e&&e.stack||e); } }
 }
 let __press = null; let __mouseLast = 0, __mouseVisible = false, __mouseButtons = 0;

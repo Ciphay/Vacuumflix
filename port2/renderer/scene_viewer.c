@@ -222,6 +222,7 @@ static void gl_init(void){ GLuint vs=compile(GL_VERTEX_SHADER,VS),fs=compile(GL_
     glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE_MINUS_SRC_ALPHA); }
 
 static int g_dw=0,g_dh=0;
+static int g_vidnow=0, g_vidinh=0;
 static void draw(Widget*wd,float ox,float oy,float ps,float po,int vw,int vh){
     if(!wd)return; float wx=wd->x, wy=wd->y, wop=wd->opacity, ww_=wd->w, hh_=wd->h, wsc=wd->scale;
     { int done[6]={0,0,0,0,0,0}; for(int k=0;k<wd->nan;k++){ const Anim*an=&wd->an[k]; if(done[an->prop]) continue; if(g_now_ms>=an->t0+an->dur) continue;
@@ -240,7 +241,7 @@ static void draw(Widget*wd,float ox,float oy,float ps,float po,int vw,int vh){
     else if(a>0.001f && wd->cr>0){ glUseProgram(rprog); glBindVertexArray(vao); glUniform4f(uRRect,px,py,w,h); glUniform4f(uRUV,0,0,1,1); glUniform2f(uRView,vw,vh); glUniform2f(uRSize,w,h);
         glUniform1f(uRRad,wd->cr*sc); glUniform2f(uRSh,0,0); glUniform1f(uRSW,0); float z4[4]={0,0,0,0}; float f4[4]={r,g,b,a/(op>0?op:1)}; glUniform4fv(uRSC,1,z4); glUniform4fv(uRFill,1,f4); glUniform1i(uRGOn,0); glUniform4fv(uRGrad,1,z4); glUniform1i(uRN,1); glUniform1f(uRAlpha,op); glDrawArrays(GL_TRIANGLE_STRIP,0,4); }
     else if(a>0.001f){ glUseProgram(prog); glBindVertexArray(vao); glUniform4f(uRect,px,py,w,h); glUniform4f(uCUV,0,0,1,1); glUniform2f(uView,vw,vh); glUniform4f(uColor,r,g,b,a); glDrawArrays(GL_TRIANGLE_STRIP,0,4); }
-    for(int i=0;i<wd->nitems;i++){ Tex*t=wd->kinds[i]=='M'?vid_get(wd->items[i]):tex_get(wd->items[i]); if(!t) continue;
+    for(int i=0;i<wd->nitems;i++){ Tex*t=wd->kinds[i]=='M'?vid_get(wd->items[i]):tex_get(wd->items[i]); if(!t) continue; if(wd->kinds[i]=='M' && wd->ia[i]>0.01f) g_vidnow=1;
         glUseProgram(tprog); glUniform1f(uTClipRad,0.f); glBindVertexArray(vao); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,t->tex); glUniform1i(uTSamp,0);
         float iw=wd->kinds[i]=='T'?t->w:w, ih=wd->kinds[i]=='T'?t->h:h; if(wd->kinds[i]=='T'){ iw*=sc; ih*=sc; }
         int vflag2=(wd->kinds[i]=='M'&&wd->uv[i][0]<-1.5f);     int nocrop=(wd->kinds[i]=='M'&&wd->uv[i][0]<0.f&&!vflag2);     float bf=(wd->kinds[i]=='M'&&!nocrop&&t->h>0)?(float)t->band/t->h:0.f, bbf=(wd->kinds[i]=='M'&&!nocrop&&t->h>0)?(float)t->bandb/t->h:0.f; int hasb=(bf>0.f||bbf>0.f); int vscis=0; float rx=px, ry=py; if(wd->kinds[i]=='M'&&!nocrop&&t->w>0&&t->h>0){   float cw=(float)t->w, ch=(float)t->h*(1.f-bf-bbf); int fullw=(w>=0.9f*vw); float RX=fullw?0.f:px, RY=fullw?0.f:py, RW=fullw?(float)vw:w, RH=fullw?(float)vh:h; int fitw=fullw&&!vflag2; float s=fitw?(RW/cw):fmaxf(RW/cw,RH/ch); iw=cw*s; ih=ch*s; rx=RX+(RW-iw)*0.5f; ry=fitw?RY:(RY+(RH-ih)*0.5f);
@@ -374,6 +375,9 @@ int main(int argc,char**argv){
             FILE*o=fopen(getenv("SNAP"),"wb"); fprintf(o,"P6\n%d %d\n255\n",pw,ph); for(int y=ph-1;y>=0;y--) for(int x=0;x<pw;x++){ fwrite(px+(y*pw+x)*4,1,3,o);} fclose(o); free(px); running=0; }
         if(access("/tmp/gibbon_shot_req",F_OK)==0){ unlink("/tmp/gibbon_shot_req"); int sw=g_dw,sh=g_dh; unsigned char*pp=malloc((size_t)sw*sh*4); if(pp){ glPixelStorei(GL_PACK_ALIGNMENT,1); glReadPixels(0,0,sw,sh,GL_RGBA,GL_UNSIGNED_BYTE,pp); FILE*fo=fopen("/tmp/gibbon_shot.ppm","wb"); if(fo){ fprintf(fo,"P6\n%d %d\n255\n",sw,sh); for(int y=sh-1;y>=0;y--) for(int x=0;x<sw;x++) fwrite(pp+((size_t)y*sw+x)*4,1,3,fo); fclose(fo); } free(pp); } }
         SDL_GL_SwapWindow(win);
+        { static Uint32 vlast=0; Uint32 nw=SDL_GetTicks(); if(g_vidnow) vlast=nw; int want=(nw-vlast)<2500;
+          if(want!=g_vidinh){ g_vidinh=want; if(want) SDL_DisableScreenSaver(); else SDL_EnableScreenSaver(); }
+          g_vidnow=0; }
         if(vstat){ double nw=SDL_GetPerformanceCounter()*1000.0/SDL_GetPerformanceFrequency(); double ft=nw-vf0; vs_n++; if(g_anim_seen) vs_na++; if(ft>vs_max) vs_max=ft; if(ft>25){ vs_slow++; fprintf(stderr,"[viewstat-lento] total=%.0fms pre-draw(poll+parse)=%.0f draw=%.0f swap+resto=%.0f uploads=%d\n",ft,vf1-vf0,vf2-vf1,nw-vf2,g_uploads); } if(vs_t0==0) vs_t0=nw; if(nw-vs_t0>2000){ fprintf(stderr,"[viewstat] fps=%.1f frame_max=%.0fms lentos(>25ms)=%d cenas/s=%.1f anim_quadros/s=%.1f parse_ms_medio=%.2f\n", vs_n*1000.0/(nw-vs_t0), vs_max, vs_slow, vs_np*1000.0/(nw-vs_t0), vs_na*1000.0/(nw-vs_t0), vs_np?vs_parse/vs_np:0); vs_t0=nw; vs_n=0; vs_na=0; vs_max=0; vs_slow=0; vs_np=0; vs_parse=0; } }
     }
     ws_track(win); SDL_GL_DeleteContext(ctx); SDL_DestroyWindow(win); SDL_Quit(); return 0;

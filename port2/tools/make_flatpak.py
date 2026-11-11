@@ -145,7 +145,8 @@ def main():
             os.makedirs(d, exist_ok=True)
             shutil.copy2(src, os.path.join(d, APP_ID + '.png'))
     run('flatpak', 'build-finish', BUILD, '--command=netflix', '--share=network', '--share=ipc',
-        '--socket=wayland', '--socket=fallback-x11', '--socket=pulseaudio', '--device=all')
+        '--socket=wayland', '--socket=fallback-x11', '--socket=pulseaudio', '--device=all',
+        '--talk-name=org.freedesktop.ScreenSaver')
     if os.path.exists(REPO):
         shutil.rmtree(REPO)
     run('flatpak', 'build-export', REPO, BUILD, A.branch)
