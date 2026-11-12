@@ -1009,7 +1009,9 @@ const ANIM_LAYOUT=/^synopsis-wrapper$/;
 function synopsisHold(w,L){ if (!L || !w.__parent || (w.__p||{}).name!=='synopsis') return 0; const par=w.__parent; if (String((par.__p||{}).name||'')!=='synopsis-wrapper' || !par.__L) return 0; return Math.max(0, L.h - par.__L.h); }
 
 function sizeOf(w, aw){
-  const p=lp(w); const it=(p.width===undefined||p.height===undefined) ? intrinsic(w, p.width!==undefined?num(p.width,0):aw) : null;
+  let p=lp(w);
+  if ((p.height===0||p.width===0) && (w.children||[]).length && /^DynamicBorderImage/.test(p.name||'')) { p=Object.assign({}, p); if (p.height===0) p.height=undefined; if (p.width===0) p.width=undefined; }
+ const it=(p.width===undefined||p.height===undefined) ? intrinsic(w, p.width!==undefined?num(p.width,0):aw) : null;
   const aw2 = (v,k)=> (w.__a && w.__a[k] && ANIM_LAYOUT.test(String(p.name||''))) ? animVal(w,k,num(v,0)) : num(v,0);
   return { w: p.width!==undefined ? aw2(p.width,'width') : it.w, h: p.height!==undefined ? aw2(p.height,'height') : it.h };
 }
@@ -1042,7 +1044,7 @@ function arrange(w, W, H){
   let pos = 0;
   if (horiz) { if (/right/.test(al)) pos=mainBox-used; else if (/center-horizontal|^center$/.test(al)) pos=rnd((mainBox-used)/2); }
   else       { if (/bottom/.test(al)) pos=mainBox-used; else if (/center-vertical|^center$/.test(al)) pos=rnd((mainBox-used)/2); }
-  pos=Math.max(0,pos);
+  if (!/^PopoutInner$/.test(String((w.__p||{}).name||''))) pos=Math.max(0,pos);
   let spaceGap=0;
   if (/space-between/.test(al)) { if (kids.length>1) spaceGap=Math.max(0,(mainBox-used)/(kids.length-1)); else pos=Math.max(0,rnd((mainBox-used)/2)); }
   kids.forEach((k,i)=>{
@@ -1119,7 +1121,7 @@ function emitRenderProps(){
     if ((n.sendRenderProperties || (typeof (n.__p||{}).text==='string' && n.textStyle) || __E.RPALL!=='0') && n.__ev && n.__ev.renderpropertychange && n.__ev.renderpropertychange.length) {
       const L=n.__L, p=n.__p||{}; const cur={ renderX: L?L.x:num(p.x,0), renderY: L?L.y:num(p.y,0), renderWidth: L?L.w:num(p.width,0), renderHeight: L?L.h:num(p.height,0) };
       if (typeof p.text==='string' && n.textStyle) { const st=n.textStyle, pd=padOf(n), k=sceneScale(), w=(L?L.w:num(p.width,0))-pd.l-pd.r; if (w>0) { const m=measureTextSync({ text:p.text, rich:!!st.richText, family:st.family, size:(st.size||16)*k, weight:st.weight, wrap:!!st.wrap, width:w, lineHeight:st.lineHeight?st.lineHeight*k:undefined }); if (m && m.lines) cur.renderTextLines=m.lines; } }
-      const last=n.__lastRP||{};
+      const last=n.__lastRP||(/^Text-Tooltip/.test(String((n.__p||{}).name||''))?{ renderX:0, renderY:0, renderWidth:0, renderHeight:0 }:{});
       for (const k of Object.keys(cur)) if (last[k]!==cur[k]) { const ov=last[k]; last[k]=cur[k]; if(__E.RPLOG) console.log('[renderprop]', n.id, (n.__p||{}).name, k, cur[k]); n._sendRenderProperty(k, ov, cur[k]); }
       n.__lastRP=last;
     }
@@ -1244,6 +1246,7 @@ if (root) (function walk(w,depth,card,btn){
       if (__E.PTRDBG && __isPtrImg && Date.now() - (globalThis.__pdT || 0) > 1500) { globalThis.__pdT = Date.now(); const ch = []; for (let n = w, d = 0; n && d < 6; n = n.__parent, d++) ch.push((n.__p || {}).name || '#' + n.id); console.log('[ptrimg]', ch.join(' < '), __bgs.slice(0, 90)); }
       let __vert = PTR_NAMES.test(p.name||'');
       const __hidePtr = !__E.SHOWPTR && __vert;
+      if (p.name==='DynamicBorderImageFastHalti' && w.__parent && (w.__parent.__p||{}).name==='Tooltip') __he += 1;
       lines.push(`W ${depth} ${__xe} ${__ye} ${__we} ${__he} ${((roundBtn||roundTag||roundPin)?0:col).toString(16).padStart(8,'0')} ${__hidePtr?0:__ope} ${__sce}`);
       if (__we>0 && __he>0 && (__ope>0.01 || __hidePtr)) { const PAh=ABS[ABS.length-1]; (globalThis.__hitsNew||(globalThis.__hitsNew=[])).push({ w, x:PAh.x+__xe, y:PAh.y+__ye, ww:__we, hh:__he }); }
       if (__N) for (const l of __N) lines.push(l);

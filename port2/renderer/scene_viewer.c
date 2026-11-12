@@ -12,7 +12,8 @@ static int g_sc_on=0; static int g_sc[4]; static int g_cursor_want=0, g_cursor_c
 static int ws_mode=0, ws_w=1280, ws_h=720, ws_x=-1, ws_y=-1;
 static void ws_load(void){ const char*p=getenv("WINDOW_STATE"); if(!p) return; FILE*f=fopen(p,"r"); if(!f) return; int m,w,h,x,y; if(fscanf(f,"%d %d %d %d %d",&m,&w,&h,&x,&y)==5){ if(m>=0&&m<=2) ws_mode=m; if(w>=320&&w<=16384&&h>=240&&h<=16384){ ws_w=w; ws_h=h; } ws_x=x; ws_y=y; } fclose(f); }
 static void ws_save(void){ const char*p=getenv("WINDOW_STATE"); if(!p) return; FILE*f=fopen(p,"w"); if(!f) return; fprintf(f,"%d %d %d %d %d\n",ws_mode,ws_w,ws_h,ws_x,ws_y); fclose(f); }
-static void ws_track(SDL_Window*win){ Uint32 fl=SDL_GetWindowFlags(win); if(fl&SDL_WINDOW_FULLSCREEN_DESKTOP) ws_mode=2; else if(fl&SDL_WINDOW_MAXIMIZED) ws_mode=1; else { ws_mode=0; SDL_GetWindowSize(win,&ws_w,&ws_h); SDL_GetWindowPosition(win,&ws_x,&ws_y); } ws_save(); }
+static int g_gs(void){ const char*d=getenv("XDG_CURRENT_DESKTOP"); return getenv("GAMESCOPE_WAYLAND_DISPLAY")||getenv("SteamGamepadUI")||(d&&strstr(d,"gamescope")); }
+static void ws_track(SDL_Window*win){ if(g_gs()) return; Uint32 fl=SDL_GetWindowFlags(win); if(fl&SDL_WINDOW_FULLSCREEN_DESKTOP) ws_mode=2; else if(fl&SDL_WINDOW_MAXIMIZED) ws_mode=1; else { ws_mode=0; SDL_GetWindowSize(win,&ws_w,&ws_h); SDL_GetWindowPosition(win,&ws_x,&ws_y); } ws_save(); }
 
 static int g_splash_ready; static int g_splash_reset_req=0;
 typedef struct { int prop; float base, from, to; double t0, dur; int mode, fam; } Anim;
@@ -329,7 +330,7 @@ int main(int argc,char**argv){
     SDL_Window*win=SDL_CreateWindow("Netflix",
         (ws_x>=0&&ws_y>=0)?ws_x:SDL_WINDOWPOS_CENTERED,(ws_x>=0&&ws_y>=0)?ws_y:SDL_WINDOWPOS_CENTERED,ws_w,ws_h,SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
     { const char*ib=getenv("NETFLIX_ICON_BMP"); if(ib){ SDL_Surface*is=SDL_LoadBMP(ib); if(is){ SDL_SetWindowIcon(win,is); SDL_FreeSurface(is); } } }
-    if(getenv("NETFLIX_FULLSCREEN")||ws_mode==2) SDL_SetWindowFullscreen(win,SDL_WINDOW_FULLSCREEN_DESKTOP); else if(ws_mode==1) SDL_MaximizeWindow(win);
+    if(getenv("NETFLIX_FULLSCREEN")||g_gs()||ws_mode==2) SDL_SetWindowFullscreen(win,SDL_WINDOW_FULLSCREEN_DESKTOP); else if(ws_mode==1) SDL_MaximizeWindow(win);
     SDL_StartTextInput();
     SDL_GLContext ctx=SDL_GL_CreateContext(win); SDL_GL_SetSwapInterval(1); gl_init();
     printf("[viewer] lendo cena de: %s (hot-reload). ESC/fechar p/ sair.\n", scenefile);
