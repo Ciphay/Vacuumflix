@@ -146,7 +146,10 @@ def main():
             shutil.copy2(src, os.path.join(d, APP_ID + '.png'))
     run('flatpak', 'build-finish', BUILD, '--command=netflix', '--share=network', '--share=ipc',
         '--socket=wayland', '--socket=fallback-x11', '--socket=pulseaudio', '--device=all',
-        '--talk-name=org.freedesktop.ScreenSaver')
+        '--talk-name=org.freedesktop.ScreenSaver',
+        # Voice guidance for screen reader users: speak through Orca (or Cthulhu), or Speech Dispatcher.
+        '--talk-name=org.gnome.Orca1.Service', '--talk-name=org.gnome.Orca.Service',
+        '--talk-name=org.stormux.Cthulhu1.Service', '--filesystem=xdg-run/speech-dispatcher')
     if os.path.exists(REPO):
         shutil.rmtree(REPO)
     run('flatpak', 'build-export', REPO, BUILD, A.branch)

@@ -485,6 +485,8 @@ function logProxy(name, base){ const L={}; base.__listeners=L; base.emit=(n,ev)=
   base.removeListener=base.removeEventListener=base.off=(n,f)=>{ if (L[n]) L[n]=L[n].filter(x=>x!==f); };
   return new Proxy(base, { get(t,k){ if (k in t) return t[k]; if (typeof k!=='string' || k==='then' || k==='provideLicense') return undefined; return (...args)=>{ mlog(name+'.'+k, args.map(x=>typeof x==='function'?'<fn>':x)); const cb=args.find(x=>typeof x==='function'); if (cb) setImmediate(()=>cb({ success:true })); return { success:true }; }; }, set(t,k,v){ mlog(name+'.'+String(k)+' =', typeof v==='function'?'<fn>':v); t[k]=v; return true; } }); }
 const __media = require('./media')({ mlog, mono: ()=>Date.now(), logProxy });
+// Netflix's built-in voice guidance, spoken through the user's screen reader (see tts.js).
+const __tts = require('./tts')({ log: (...a)=>console.log(...a) });
 const nrdpReal = {
   resourcemanager: Object.assign(tolerant('resourcemanager'), { currentMilo:'base' }),
   mediasourceplayerfactory: {
@@ -581,7 +583,7 @@ const nrdpReal = {
     ERRORCODE: new Proxy({},{ get(_t,p){ return String(p); } }),
     ERRORGROUP: new Proxy({},{ get(_t,p){ return String(p); } }),
   },
-  texttospeech: { speak(){}, cancel(){}, isSpeaking:()=>false, addEventListener(){}, removeEventListener(){}, enabled:false },
+  texttospeech: __tts,
   instrumentation: new Proxy({ SWITCHED:'SWITCHED' }, { get(t,p){ if(p in t) return t[p]; if(typeof p==='string' && /^[A-Z_]+$/.test(p)) return p; return ()=>{}; } }),
   addEventListener: (ev,fn)=>{ (nrdpReal.__ev[ev]||(nrdpReal.__ev[ev]=[])).push(fn); },
   removeEventListener: (ev,fn)=>{ const a=nrdpReal.__ev[ev]; if(a){ const i=a.indexOf(fn); if(i>=0)a.splice(i,1);} },
